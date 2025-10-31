@@ -7,49 +7,49 @@
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- This allows the Groq SDK to run in a browser environment -->
 
     
     <style>
         :root {
-            /* Professional, clean color palette */
-            --bg-color: #f8f9fa;
-            --text-color: #1a1a1a;
-            --primary-color: #2563eb;
-            --primary-hover: #1d4ed8;
-            --secondary-color: #f1f5f9;
-            --border-color: #e2e8f0;
-            --container-bg: #ffffff;
-            --shadow: 0 1px 3px rgba(0,0,0,0.1);
-            --shadow-lg: 0 4px 6px rgba(0,0,0,0.07);
-            --green-btn: #10b981;
-            --green-btn-hover: #059669;
+            /* Sophisticated, warm color palette */
+            --bg-color: #f5f1ed;
+            --text-color: #2d2520;
+            --primary-color: #c17a3f;
+            --primary-hover: #a6672f;
+            --secondary-color: #e8e3dd;
+            --border-color: #d4cbc1;
+            --container-bg: #fafaf8;
+            --shadow: 0 2px 8px rgba(45, 37, 32, 0.08);
+            --shadow-lg: 0 8px 24px rgba(45, 37, 32, 0.12);
+            --green-btn: #6b8e6f;
+            --green-btn-hover: #5a7a5e;
 
-            /* Agent colors - professional and distinct */
-            --agent-for-bg: #f0fdf4;
-            --agent-for-border: #16a34a;
-            --agent-for-accent: #dcfce7;
-            --agent-against-bg: #fef2f2;
-            --agent-against-border: #dc2626;
-            --agent-against-accent: #fee2e2;
-            --neutral-bg: #eff6ff;
-            --neutral-border: #3b82f6;
+            /* Agent colors - muted, sophisticated */
+            --agent-for-bg: #e8f2e9;
+            --agent-for-border: #6b8e6f;
+            --agent-for-accent: #d5e7d6;
+            --agent-against-bg: #f5e8e8;
+            --agent-against-border: #b87a7a;
+            --agent-against-accent: #ead9d9;
+            --neutral-bg: #e9e7f0;
+            --neutral-border: #8b7faa;
         }
 
         /* Responsive base font size */
         html { font-size: 100%; }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3d3328 0%, #5a4a3a 50%, #4a3829 100%);
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            font-family: 'Inter', sans-serif;
+            font-family: 'IBM Plex Sans', sans-serif;
             padding: 2rem 1rem;
             box-sizing: border-box;
         }
@@ -67,34 +67,23 @@
         }
 
         header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
-            color: white;
-            padding: 1.75rem 2rem;
+            background: linear-gradient(135deg, #2d2520 0%, #3d3328 100%);
+            color: #f5f1ed;
+            padding: 2.5rem 2rem;
             text-align: center;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 2px solid var(--primary-color);
         }
-        
-        /* ASSET: Header Logo */
-        .logo-placeholder {
-            width: 40px; 
-            height: 40px;
-            /* ASSET: Path: 'assets/logo.svg' */
-            background: url('assets/logo.svg') no-repeat center center;
-            background-size: contain;
-            /* Fallback color if logo fails */
-            background-color: rgba(255,255,255,0.2);
-            border-radius: 8px;
-        }
-        
+
         header h1 {
             margin: 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            font-family: 'Crimson Pro', serif;
+            color: #f5f1ed;
         }
 
         .screen { display: none; }
@@ -111,53 +100,56 @@
             color: var(--text-color);
             margin-top: 0;
             margin-bottom: 0.5rem;
-            font-size: 2rem;
-            font-weight: 700;
-            letter-spacing: -0.03em;
+            font-size: 2.25rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            font-family: 'Crimson Pro', serif;
         }
 
         h3 {
             color: var(--text-color);
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             font-weight: 600;
             margin-top: 0;
             margin-bottom: 0.75rem;
+            font-family: 'Crimson Pro', serif;
         }
 
         p, li {
             line-height: 1.7;
             font-size: 1rem;
-            color: #4b5563;
+            color: #5a4e45;
         }
 
         button {
             background-color: var(--primary-color);
-            color: white;
+            color: #fafaf8;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
+            padding: 0.875rem 1.75rem;
+            border-radius: 6px;
             font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.15s ease;
-            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+            font-family: 'IBM Plex Sans', sans-serif;
             box-shadow: var(--shadow);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            letter-spacing: 0.01em;
         }
         button:hover {
             background-color: var(--primary-hover);
             box-shadow: var(--shadow-lg);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
         button:disabled {
-            background-color: #9ca3af;
+            background-color: #a89a8d;
             cursor: not-allowed;
             box-shadow: none;
             transform: none;
-            opacity: 0.6;
+            opacity: 0.5;
         }
         
         /* Welcome Screen Button Group */
@@ -169,7 +161,7 @@
             margin-top: 2rem;
         }
         .welcome-button-group button {
-            background-color: white;
+            background-color: var(--container-bg);
             color: var(--text-color);
             text-align: left;
             border: 2px solid var(--border-color);
@@ -178,24 +170,25 @@
             display: flex;
             align-items: center;
             padding: 2rem 1.5rem;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             box-shadow: var(--shadow);
         }
         .welcome-button-group button:hover {
-            background-color: white;
+            background-color: var(--container-bg);
             border-color: var(--primary-color);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(45, 37, 32, 0.15);
+            transform: translateY(-3px);
         }
         .welcome-button-group button div {
-            font-size: 1.1rem;
-            font-weight: 700;
+            font-size: 1.15rem;
+            font-weight: 600;
             color: var(--text-color);
+            font-family: 'Crimson Pro', serif;
         }
         .welcome-button-group button span {
-            font-weight: 500;
+            font-weight: 400;
             font-size: 0.9rem;
-            color: #6b7280;
+            color: #5a4e45;
         }
         
         /* ASSET: Button Icons */
@@ -216,17 +209,17 @@
             gap: 0.75rem;
         }
         .button-group button {
-            background-color: white;
+            background-color: var(--container-bg);
             color: var(--text-color);
             text-align: left;
             border: 2px solid var(--border-color);
-            padding: 1rem 1.5rem;
+            padding: 1.125rem 1.5rem;
             font-size: 1rem;
         }
         .button-group button:hover {
-            background-color: white;
+            background-color: var(--container-bg);
             border-color: var(--primary-color);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
 
@@ -246,7 +239,7 @@
             border: 2px solid var(--border-color);
             border-radius: 12px;
             padding: 2rem;
-            background: white;
+            background: var(--container-bg);
             height: 100%;
             box-sizing: border-box;
             box-shadow: var(--shadow);
@@ -287,14 +280,14 @@
             font-size: 0.95rem;
         }
         .chat-message.user {
-            background: var(--primary-color);
-            color: white;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            color: #fafaf8;
             align-self: flex-end;
             border-radius: 12px 12px 2px 12px;
             box-shadow: var(--shadow);
         }
         .chat-message.assistant {
-            background: white;
+            background: var(--container-bg);
             color: var(--text-color);
             align-self: flex-start;
             border-radius: 12px 12px 12px 2px;
@@ -542,8 +535,6 @@
 
     <div id="app-container">
         <header>
-            <!-- ASSET: Header Logo -->
-            <div class="logo-placeholder"></div>
             <h1>Civic Policy AI Interaction Study</h1>
         </header>
 
