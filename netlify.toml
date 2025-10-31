@@ -1,0 +1,10 @@
+
+[build]
+  command = "npm install && sed -i 's|%%GROQ_API_KEY%%|'\"$GROQ_API_KEY\"'|g' index.html"
+  publish = "/"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
