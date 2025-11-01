@@ -7,49 +7,49 @@
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     
     <!-- This allows the Groq SDK to run in a browser environment -->
 
     
     <style>
         :root {
-            /* Sophisticated, warm color palette */
+            /* Cool, subtle color palette */
             --bg-color: #f5f1ed;
-            --text-color: #2d2520;
-            --primary-color: #8b6f47;
-            --primary-hover: #6d5635;
-            --secondary-color: #e8e3dd;
-            --border-color: #d4cbc1;
+            --text-color: #3d4247;
+            --primary-color: #2c3e50;
+            --primary-hover: #1e2d3d;
+            --secondary-color: #e8e9ea;
+            --border-color: #c5c8ca;
             --container-bg: #fafaf8;
-            --shadow: 0 2px 8px rgba(45, 37, 32, 0.08);
-            --shadow-lg: 0 8px 24px rgba(45, 37, 32, 0.12);
-            --green-btn: #6b7c5c;
-            --green-btn-hover: #56644a;
+            --shadow: 0 2px 8px rgba(61, 66, 71, 0.08);
+            --shadow-lg: 0 8px 24px rgba(61, 66, 71, 0.12);
+            --green-btn: #2c3e50;
+            --green-btn-hover: #1e2d3d;
 
-            /* Agent colors - muted, sophisticated */
-            --agent-for-bg: #e8f2e9;
-            --agent-for-border: #6b7c5c;
-            --agent-for-accent: #d5e7d6;
-            --agent-against-bg: #f5e8e8;
-            --agent-against-border: #9b6b6b;
-            --agent-against-accent: #ead9d9;
-            --neutral-bg: #e9e7f0;
-            --neutral-border: #8b7faa;
+            /* Agent colors - cool, muted tones */
+            --agent-for-bg: #dff0e8;
+            --agent-for-border: #4a8c6f;
+            --agent-for-accent: #c5e4d9;
+            --agent-against-bg: #f5e6e6;
+            --agent-against-border: #b56b6b;
+            --agent-against-accent: #e8d0d0;
+            --neutral-bg: #e3e7f5;
+            --neutral-border: #6b7bb8;
         }
 
         /* Responsive base font size */
         html { font-size: 100%; }
 
         body {
-            background: linear-gradient(135deg, #3d3328 0%, #5a4a3a 50%, #4a3829 100%);
+            background: #000000;
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            font-family: 'IBM Plex Sans', sans-serif;
+            font-family: 'Inter', sans-serif;
             padding: 2rem 1rem;
             box-sizing: border-box;
         }
@@ -67,7 +67,7 @@
         }
 
         header {
-            background: linear-gradient(135deg, #2d2520 0%, #3d3328 100%);
+            background: linear-gradient(135deg, #1e2d3d 0%, #2c3e50 100%);
             color: #f5f1ed;
             padding: 2.5rem 2rem;
             text-align: center;
@@ -79,10 +79,10 @@
 
         header h1 {
             margin: 0;
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 600;
-            letter-spacing: 0.02em;
-            font-family: 'Crimson Pro', serif;
+            letter-spacing: -0.01em;
+            font-family: 'Space Grotesk', sans-serif;
             color: #f5f1ed;
         }
 
@@ -100,10 +100,17 @@
             color: var(--text-color);
             margin-top: 0;
             margin-bottom: 0.5rem;
-            font-size: 2.25rem;
+            font-size: 2.75rem;
             font-weight: 600;
-            letter-spacing: -0.01em;
-            font-family: 'Crimson Pro', serif;
+            letter-spacing: -0.02em;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Step titles - smaller than welcome */
+        #problem-selection-screen h2,
+        #interaction-screen h2,
+        #stance-screen h2 {
+            font-size: 1.75rem;
         }
 
         h3 {
@@ -112,13 +119,13 @@
             font-weight: 600;
             margin-top: 0;
             margin-bottom: 0.75rem;
-            font-family: 'Crimson Pro', serif;
+            font-family: 'Space Grotesk', sans-serif;
         }
 
         p, li {
             line-height: 1.7;
             font-size: 1rem;
-            color: #5a4e45;
+            color: #5d6369;
         }
 
         button {
@@ -131,7 +138,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            font-family: 'IBM Plex Sans', sans-serif;
+            font-family: 'Inter', sans-serif;
             box-shadow: var(--shadow);
             display: inline-flex;
             align-items: center;
@@ -145,7 +152,7 @@
             transform: translateY(-2px);
         }
         button:disabled {
-            background-color: #c9b9a8;
+            background-color: #b8bcc1;
             cursor: not-allowed;
             box-shadow: none;
             transform: none;
@@ -183,12 +190,12 @@
             font-size: 1.15rem;
             font-weight: 600;
             color: var(--text-color);
-            font-family: 'Crimson Pro', serif;
+            font-family: 'Space Grotesk', sans-serif;
         }
         .welcome-button-group button span {
             font-weight: 400;
             font-size: 0.9rem;
-            color: #5a4e45;
+            color: #5d6369;
         }
         
         /* ASSET: Button Icons */
@@ -350,7 +357,7 @@
         .chat-message strong {
             display: block;
             margin-bottom: 0.25rem;
-            font-family: 'Roboto Mono', monospace;
+            font-family: 'Inter', sans-serif;
             color: var(--primary-color);
             font-size: 0.9rem;
         }
@@ -359,7 +366,7 @@
         /* System message styling */
         .chat-message.system {
             background: var(--secondary-color);
-            color: #64748b;
+            color: #5b6570;
             border: 1px solid var(--border-color);
             align-self: center;
             font-size: 0.875rem;
@@ -472,7 +479,7 @@
             /* ASSET: Path: 'assets/icon-complete.svg' */
             background: url('assets/icon-complete.svg') no-repeat center center;
             background-size: contain;
-            background-color: #e6fff0;
+            background-color: #e6f0ed;
             border-radius: 50%;
             padding: 1rem;
             margin-bottom: 1rem;
@@ -493,7 +500,7 @@
 
         /* TLDR Section */
         .tldr-section {
-            background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+            background: linear-gradient(135deg, #f0f1f3 0%, #e8eaed 100%);
             border: 2px solid var(--primary-color);
             border-radius: 12px;
             padding: 1.5rem;
@@ -518,7 +525,7 @@
 
         /* Back button styling */
         .back-btn {
-            background-color: #64748b;
+            background-color: var(--primary-color);
             margin-bottom: 1.5rem;
             padding: 0.65rem 1.25rem;
             font-size: 0.9rem;
@@ -526,7 +533,7 @@
             font-weight: 500;
         }
         .back-btn:hover {
-            background-color: #475569;
+            background-color: var(--primary-hover);
         }
 
     </style>
@@ -540,7 +547,7 @@
 
         <!-- Screen 1: Welcome & Group Assignment -->
         <div class="screen active" id="welcome-screen">
-            <h2>Welcome, Participant</h2>
+            <h2>Welcome</h2>
             <p>Thank you for participating in this research study on AI-assisted decision-making. Your task will be to review a complex policy topic, use an AI tool to understand it, and then provide your stance on the matter.</p>
             <p>Please select your assigned group to begin.</p>
             <!-- UPDATED: Button layout and icons -->
