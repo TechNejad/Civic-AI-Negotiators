@@ -787,11 +787,11 @@
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, reference them as [1], [2], or [3] based on the provided source list. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, simply write [source] after the claim. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, reference them as [1], [2], or [3] based on the provided source list. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, simply write [source] after the claim. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
             },
             summarizer: {
                 name: "Summarizer",
@@ -987,20 +987,22 @@
             appState.currentScreen = screenId;
         }
 
-        // Helper function to convert numbered citations [1] [2] [3] to clickable links
-        function convertNumberedCitations(text, sourceUrls) {
+        // Helper function to convert [source] citations to clickable links
+        function convertSourceCitations(text, sourceUrls) {
             if (!sourceUrls || sourceUrls.length === 0) {
                 return text;
             }
 
-            // Replace [1], [2], [3] with clickable links
-            return text.replace(/\[(\d+)\]/g, (match, num) => {
-                const index = parseInt(num) - 1;
-                if (index >= 0 && index < sourceUrls.length) {
-                    const url = sourceUrls[index];
-                    return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; font-weight: 500;" title="Source ${num}">[${num}]</a>`;
+            let urlIndex = 0;
+
+            // Replace each [source] with a clickable link, cycling through available URLs
+            return text.replace(/\[source\]/gi, (match) => {
+                if (urlIndex < sourceUrls.length) {
+                    const url = sourceUrls[urlIndex];
+                    urlIndex++;
+                    return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; font-weight: 500;" title="View source">[source]</a>`;
                 }
-                return match; // Return unchanged if no matching URL
+                return match; // Return unchanged if we've run out of URLs
             });
         }
 
@@ -1013,8 +1015,8 @@
                 html += `<strong>${speakerName}</strong>`;
             }
 
-            // Convert numbered citations to clickable links
-            const processedText = convertNumberedCitations(text, appState.currentSourceUrls);
+            // Convert [source] citations to clickable links
+            const processedText = convertSourceCitations(text, appState.currentSourceUrls);
             html += processedText;
 
             msg.innerHTML = html;
@@ -1168,12 +1170,7 @@
                         if (searchResults.results && searchResults.results.length > 0) {
                             // Store URLs in appState for citation conversion
                             appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-
-                            // Provide source metadata to agents (not full URLs)
-                            const sourceList = searchResults.results.slice(0, 3)
-                                .map((r, i) => `[${i+1}] ${r.title || 'Source ' + (i+1)}`)
-                                .join('\n');
-                            searchContext += `\n\nAvailable sources (cite using [1], [2], [3]):\n${sourceList}`;
+                            searchContext += `\n\n(Sources are available - cite claims by writing [source])`;
                         }
                     }
 
