@@ -530,13 +530,17 @@
             font-weight: 700;
         }
         .tldr-section ul {
-            margin: 0;
-            padding-left: 1.5rem;
-            line-height: 1.8;
+            margin: 0.5rem 0 0 0;
+            padding-left: 1.75rem;
+            line-height: 1.9;
         }
         .tldr-section li {
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
             color: var(--text-color);
+            font-size: 1rem;
+        }
+        .tldr-section li:last-child {
+            margin-bottom: 0;
         }
 
         /* Back button styling */
@@ -783,15 +787,15 @@
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to argue in favor of the topic. You have access to current web-sourced information. Present clear, well-reasoned points that highlight benefits, strengths, and justifications using the latest data and facts provided. Cite specific statistics and sources when available. Be concise — no more than four short sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to argue in favor of the topic. You have access to current web-sourced information. Present ONE clear, well-reasoned point using the latest data provided. Cite specific statistics and sources. Be extremely concise — MAXIMUM 3 short sentences per turn.`
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to take a skeptical stance. You have access to current web-sourced information. Raise thoughtful concerns, limitations, risks, or counterpoints using the latest data and facts provided. Cite specific statistics and sources when available. Be concise — no more than four short sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to take a skeptical stance. You have access to current web-sourced information. Raise ONE thoughtful concern, limitation, or counterpoint using the latest data provided. Cite specific statistics and sources. Be extremely concise — MAXIMUM 3 short sentences per turn.`
             },
             summarizer: {
                 name: "Summarizer",
-                systemPrompt: "Create a summary with exactly 3 points: 1) Main FOR argument, 2) Main AGAINST argument, 3) Key tension between them. Write each point as one clear sentence. Start each point on a new line with just the sentence - no bullets, no asterisks, no numbers."
+                systemPrompt: "Create exactly 3 brief summary points. Each point should be ONE short, clear sentence (max 15 words). Format: Just write 3 sentences, one per line. No labels, no bullets, no asterisks, no 'FOR:', no 'AGAINST:'. First sentence summarizes the pro argument, second summarizes the con argument, third states the key disagreement."
             }
         };
 
@@ -1146,10 +1150,10 @@
 
                     // First, provide a brief topic introduction
                     const introPrompt = [
-                        { role: 'user', content: `Provide a brief 2-3 sentence introduction explaining what this topic is about: ${problemText}${searchContext}` }
+                        { role: 'user', content: `Provide a brief 1-2 sentence introduction explaining what this topic is about: ${problemText}${searchContext}` }
                     ];
                     const topicIntro = await getFullAiResponseWithBackoff(
-                        "You are a neutral educator providing clear, unbiased context. Explain the topic in 2-3 sentences maximum. Be factual and concise.",
+                        "You are a neutral educator providing clear, unbiased context. Explain the topic in MAXIMUM 2 short sentences (under 30 words total). Be extremely concise.",
                         introPrompt
                     );
                     addMessageToWindow(topicIntro, 'topic-intro', elements.negotiationWindow);
@@ -1217,17 +1221,23 @@
 
                     // Generate TLDR
                     const tldrPrompt = [
-                        { role: 'user', content: `Summarize this debate in 3-4 bullet points:\n${appState.negotiationHistory.map(h => `${h.speaker}: ${h.text}`).join('\n\n')}` }
+                        { role: 'user', content: `Summarize this debate in exactly 3 short sentences:\n${appState.negotiationHistory.map(h => `${h.speaker}: ${h.text}`).join('\n\n')}` }
                     ];
                     const tldr = await getFullAiResponseWithBackoff(PERSONAS.summarizer.systemPrompt, tldrPrompt);
 
                     // Display TLDR as clean bullet points
                     const tldrContainer = document.getElementById('tldr-container');
-                    const tldrPoints = tldr.split('\n').filter(line => line.trim().length > 0);
+                    const tldrPoints = tldr.split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0)
+                        .filter(line => !line.toLowerCase().includes('here are') && !line.toLowerCase().includes('bullet point'))
+                        .map(line => line.replace(/^[*\-•]\s*/, '').replace(/^\d+[\.)]\s*/, ''))
+                        .slice(0, 3);
+
                     const tldrHTML = `<div class="tldr-section">
                         <h3>Summary</h3>
                         <ul>
-                            ${tldrPoints.map(point => `<li>${point.trim()}</li>`).join('')}
+                            ${tldrPoints.map(point => `<li>${point}</li>`).join('')}
                         </ul>
                     </div>`;
                     tldrContainer.innerHTML = tldrHTML;
