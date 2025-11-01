@@ -985,15 +985,36 @@
         }
 
         // UPDATED: Now returns the created element
+        // Helper function to convert URLs to numbered hyperlinks
+        function convertUrlsToLinks(text) {
+            // Regular expression to match URLs
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+            let linkCounter = 0;
+            const urls = [];
+
+            return text.replace(urlRegex, (url) => {
+                // Clean up URL (remove trailing punctuation)
+                let cleanUrl = url.replace(/[.,;:!?)]+$/, '');
+                linkCounter++;
+
+                return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">[${linkCounter}]</a>`;
+            });
+        }
+
         function addMessageToWindow(text, sender, targetWindow, speakerName = null) {
             const msg = document.createElement('div');
             msg.className = `chat-message ${sender}`; // sender is 'user' or 'assistant' or 'system' or 'assistant agent-a'
-            
+
             let html = "";
             if (speakerName) {
                 html += `<strong>${speakerName}</strong>`;
             }
-            html += text;
+
+            // Convert URLs to clickable links
+            const processedText = convertUrlsToLinks(text);
+            html += processedText;
+
             msg.innerHTML = html;
 
             targetWindow.appendChild(msg);
