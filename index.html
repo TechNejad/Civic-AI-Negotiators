@@ -379,6 +379,22 @@
             font-weight: 500;
         }
 
+        /* Topic introduction message styling */
+        .chat-message.topic-intro {
+            background: #fffaeb;
+            color: #3d4247;
+            border: 1px solid #f7e7b3;
+            align-self: center;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+        }
+
         .chat-input {
             display: flex;
             gap: 0.75rem;
@@ -1073,13 +1089,25 @@
                 elements.startNegotiationBtn.innerHTML = '<span class="spinner"></span> Debate in Progress...';
 
                 const problemText = appState.selectedProblem.fullText;
-                let negotiationMessageHistory = [
-                    { role: 'user', content: `The policy to be debated is: ${problemText}. Provide your opening statement with evidence-based arguments.` }
-                ];
 
                 appState.negotiationHistory = [];
 
                 try {
+                    // First, provide a brief topic introduction
+                    const introPrompt = [
+                        { role: 'user', content: `Provide a brief 2-3 sentence introduction explaining what this topic is about: ${problemText}` }
+                    ];
+                    const topicIntro = await getFullAiResponseWithBackoff(
+                        "You are a neutral educator providing clear, unbiased context. Explain the topic in 2-3 sentences maximum. Be factual and concise.",
+                        introPrompt
+                    );
+                    addMessageToWindow(topicIntro, 'topic-intro', elements.negotiationWindow);
+                    await sleep(1500); // Brief pause after introduction
+
+                    let negotiationMessageHistory = [
+                        { role: 'user', content: `The policy to be debated is: ${problemText}. Provide your opening statement with evidence-based arguments.` }
+                    ];
+
                     for (let i = 0; i < NEGOTIATION_EXCHANGES * 2; i++) {
                         const isAgentFor = i % 2 === 0;
                         const agent = isAgentFor ? PERSONAS.agentFor : PERSONAS.agentAgainst;
