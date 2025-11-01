@@ -787,15 +787,15 @@
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to argue in favor of the topic. You have access to current web-sourced information. Present ONE clear, well-reasoned point using the latest data provided. Cite specific statistics and years. Do NOT include source URLs or links. Be extremely concise — MAXIMUM 3 short sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, reference them as [1], [2], or [3] based on the provided source list. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate on a topic chosen by the user. Your role is to take a skeptical stance. You have access to current web-sourced information. Raise ONE thoughtful concern, limitation, or counterpoint using the latest data provided. Cite specific statistics and years. Do NOT include source URLs or links. Be extremely concise — MAXIMUM 3 short sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, reference them as [1], [2], or [3] based on the provided source list. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
             },
             summarizer: {
                 name: "Summarizer",
-                systemPrompt: "Create exactly 3 brief summary points. Each point should be ONE short, clear sentence (max 15 words). Format: Just write 3 sentences, one per line. No labels, no bullets, no asterisks, no 'FOR:', no 'AGAINST:'. First sentence summarizes the pro argument, second summarizes the con argument, third states the key disagreement."
+                systemPrompt: "Create exactly 3 summary points. Write:\nFOR: [One sentence summarizing the best argument in favor]\nAGAINST: [One sentence summarizing the best argument against]\nCONCLUSION: [One sentence about the key tension or tradeoff]\n\nKeep each sentence under 20 words. Be clear and direct."
             }
         };
 
@@ -808,12 +808,15 @@
             selectedProblemId: null,
             selectedProblem: null,
             isAiThinking: false,
-            
+
             // Data for Logging
             clarificationChatHistory: [],
             singleChatHistory: [],
             negotiationHistory: [],
-            userStance: ""
+            userStance: "",
+
+            // Current source URLs for citations
+            currentSourceUrls: []
         };
 
         // --- 4. DOM ELEMENT REFERENCES ---
@@ -984,21 +987,20 @@
             appState.currentScreen = screenId;
         }
 
-        // UPDATED: Now returns the created element
-        // Helper function to convert URLs to numbered hyperlinks
-        function convertUrlsToLinks(text) {
-            // Regular expression to match URLs
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
+        // Helper function to convert numbered citations [1] [2] [3] to clickable links
+        function convertNumberedCitations(text, sourceUrls) {
+            if (!sourceUrls || sourceUrls.length === 0) {
+                return text;
+            }
 
-            let linkCounter = 0;
-            const urls = [];
-
-            return text.replace(urlRegex, (url) => {
-                // Clean up URL (remove trailing punctuation)
-                let cleanUrl = url.replace(/[.,;:!?)]+$/, '');
-                linkCounter++;
-
-                return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">[${linkCounter}]</a>`;
+            // Replace [1], [2], [3] with clickable links
+            return text.replace(/\[(\d+)\]/g, (match, num) => {
+                const index = parseInt(num) - 1;
+                if (index >= 0 && index < sourceUrls.length) {
+                    const url = sourceUrls[index];
+                    return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; font-weight: 500;" title="Source ${num}">[${num}]</a>`;
+                }
+                return match; // Return unchanged if no matching URL
             });
         }
 
@@ -1011,8 +1013,8 @@
                 html += `<strong>${speakerName}</strong>`;
             }
 
-            // Convert URLs to clickable links
-            const processedText = convertUrlsToLinks(text);
+            // Convert numbered citations to clickable links
+            const processedText = convertNumberedCitations(text, appState.currentSourceUrls);
             html += processedText;
 
             msg.innerHTML = html;
@@ -1162,10 +1164,16 @@
 
                     let searchContext = "";
                     if (searchResults && searchResults.answer) {
-                        searchContext = `\n\nCurrent information (from web search): ${searchResults.answer}`;
+                        searchContext = `\n\nCurrent information: ${searchResults.answer}`;
                         if (searchResults.results && searchResults.results.length > 0) {
-                            const sources = searchResults.results.map(r => r.url).slice(0, 2).join(', ');
-                            searchContext += `\nSources: ${sources}`;
+                            // Store URLs in appState for citation conversion
+                            appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
+
+                            // Provide source metadata to agents (not full URLs)
+                            const sourceList = searchResults.results.slice(0, 3)
+                                .map((r, i) => `[${i+1}] ${r.title || 'Source ' + (i+1)}`)
+                                .join('\n');
+                            searchContext += `\n\nAvailable sources (cite using [1], [2], [3]):\n${sourceList}`;
                         }
                     }
 
@@ -1246,19 +1254,32 @@
                     ];
                     const tldr = await getFullAiResponseWithBackoff(PERSONAS.summarizer.systemPrompt, tldrPrompt);
 
-                    // Display TLDR as clean bullet points
+                    // Display TLDR as clean bullet points with FOR/AGAINST/CONCLUSION structure
                     const tldrContainer = document.getElementById('tldr-container');
-                    const tldrPoints = tldr.split('\n')
-                        .map(line => line.trim())
-                        .filter(line => line.length > 0)
-                        .filter(line => !line.toLowerCase().includes('here are') && !line.toLowerCase().includes('bullet point'))
-                        .map(line => line.replace(/^[*\-•]\s*/, '').replace(/^\d+[\.)]\s*/, ''))
-                        .slice(0, 3);
+
+                    // Parse the summary to extract FOR/AGAINST/CONCLUSION
+                    const lines = tldr.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+                    let forPoint = '';
+                    let againstPoint = '';
+                    let conclusionPoint = '';
+
+                    lines.forEach(line => {
+                        if (line.match(/^FOR:/i)) {
+                            forPoint = line.replace(/^FOR:\s*/i, '');
+                        } else if (line.match(/^AGAINST:/i)) {
+                            againstPoint = line.replace(/^AGAINST:\s*/i, '');
+                        } else if (line.match(/^CONCLUSION:/i)) {
+                            conclusionPoint = line.replace(/^CONCLUSION:\s*/i, '');
+                        }
+                    });
 
                     const tldrHTML = `<div class="tldr-section">
                         <h3>Summary</h3>
                         <ul>
-                            ${tldrPoints.map(point => `<li>${point}</li>`).join('')}
+                            <li><strong>FOR:</strong> ${forPoint || 'Supporting arguments were presented.'}</li>
+                            <li><strong>AGAINST:</strong> ${againstPoint || 'Opposing concerns were raised.'}</li>
+                            <li><strong>CONCLUSION:</strong> ${conclusionPoint || 'Key tensions remain between these positions.'}</li>
                         </ul>
                     </div>`;
                     tldrContainer.innerHTML = tldrHTML;
