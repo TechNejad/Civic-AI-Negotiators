@@ -1,5 +1,5 @@
 {
-  "name": "civic-ai-negotiator",
+  "name": "civic-ai-debater",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/luke-schumacher/Civic-AI-Negotiator.git"
+    "url": "git+https://github.com/luke-schumacher/Civic-AI-Debater.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/luke-schumacher/Civic-AI-Negotiator/issues"
+    "url": "https://github.com/luke-schumacher/Civic-AI-Debater/issues"
   },
-  "homepage": "https://github.com/luke-schumacher/Civic-AI-Negotiator#readme",
+  "homepage": "https://github.com/luke-schumacher/Civic-AI-Debater#readme",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",

@@ -9,7 +9,7 @@
     <meta property="og:title" content="Civic Engagement AI Interaction Study">
     <meta property="og:description" content="Interactive research study exploring AI-assisted decision-making on civic topics through single-chatbot dialogue and dual-AI debate formats.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://civic-negotiators.netlify.app/">
+    <meta property="og:url" content="https://civic-debaters.netlify.app/">
 
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -259,13 +259,13 @@
             box-shadow: var(--shadow);
         }
 
-        /* Give more space to negotiation panel */
+        /* Give more space to debate panel */
         #main-interaction { flex: 2; }
         #clarification-panel { flex: 1; }
         #single-chatbot-view { width: 100%; }
 
         /* UPDATED: This container now fills height */
-        #single-chatbot-view, #dual-negotiation-view {
+        #single-chatbot-view, #dual-debate-view {
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -442,31 +442,31 @@
         }
         
         /* Agent-specific colors */
-        #dual-negotiation-view .chat-message.agent-for {
+        #dual-debate-view .chat-message.agent-for {
             background: var(--agent-for-bg);
             border: 2px solid var(--agent-for-border);
             border-left-width: 4px;
         }
-        #dual-negotiation-view .chat-message.agent-against {
+        #dual-debate-view .chat-message.agent-against {
             background: var(--agent-against-bg);
             border: 2px solid var(--agent-against-border);
             border-left-width: 4px;
         }
-        #dual-negotiation-view .chat-message.agent-for strong {
+        #dual-debate-view .chat-message.agent-for strong {
             color: var(--agent-for-border);
             font-weight: 700;
         }
-        #dual-negotiation-view .chat-message.agent-against strong {
+        #dual-debate-view .chat-message.agent-against strong {
             color: var(--agent-against-border);
             font-weight: 700;
         }
-        #dual-negotiation-view .chat-message.fact-checker {
+        #dual-debate-view .chat-message.fact-checker {
             background: var(--neutral-bg);
             border: 2px solid var(--neutral-border);
             border-left-width: 4px;
             font-size: 0.9rem;
         }
-        #dual-negotiation-view .chat-message.fact-checker strong {
+        #dual-debate-view .chat-message.fact-checker strong {
             color: var(--neutral-border);
             font-weight: 700;
         }
@@ -832,11 +832,11 @@
                          onerror="this.style.display='none'">
                     <div>Start as Group 1<br><span>(Single Chatbot)</span></div>
                 </button>
-                <button onclick="app.startSession('dualNegotiation')">
+                <button onclick="app.startSession('dualDebate')">
                     <!-- ASSET: Path: 'assets/icon-dual-chat.svg' -->
                     <img src="assets/icon-dual-chat.svg" alt="" class="button-icon"
                          onerror="this.style.display='none'">
-                    <div>Start as Group 2<br><span>(Dual-AI Negotiation)</span></div>
+                    <div>Start as Group 2<br><span>(Dual-AI Debate)</span></div>
                 </button>
             </div>
         </div>
@@ -876,15 +876,15 @@
                     </button>
                 </div>
 
-                <!-- Group 2: Dual-AI Negotiation View -->
-                <div id="dual-negotiation-view" style="display: none;">
+                <!-- Group 2: Dual-AI Debate View -->
+                <div id="dual-debate-view" style="display: none;">
                     <button class="back-btn" onclick="app.goBack()">← Back</button>
                     <h2>Step 2: Observe AI Debate</h2>
                     <p>Watch two AI agents debate opposing sides. Use the clarification chat to ask questions.</p>
-                    <button id="start-negotiation-btn" onclick="app.runNegotiation()">Start Debate</button>
-                    <div class="chat-window" id="negotiation-window"></div>
+                    <button id="start-debate-btn" onclick="app.runDebate()">Start Debate</button>
+                    <div class="chat-window" id="debate-window"></div>
                     <div id="tldr-container"></div>
-                    <button id="negotiation-proceed-btn" class="proceed-btn" onclick="app.goToStanceScreen()" disabled>
+                    <button id="debate-proceed-btn" class="proceed-btn" onclick="app.goToStanceScreen()" disabled>
                         Proceed to Submit Stance
                     </button>
                 </div>
@@ -942,14 +942,41 @@
         const API_KEY = "%%GROQ_API_KEY%%";
         const TAVILY_API_KEY = "%%TAVILY_API_KEY%%";
         const LLM_MODEL = 'llama-3.1-8b-instant';
-        const NEGOTIATION_EXCHANGES = 2; // Number of exchanges per agent (2 FOR, 2 AGAINST = 4 total)
+        const DEBATE_EXCHANGES = 2; // Number of exchanges per agent (2 FOR, 2 AGAINST = 4 total)
         const MAX_RETRIES = 5; // Max retries for rate limit
         const EXCHANGE_DELAY = 2000; // 2 second delay between exchanges for rate limits
 
+        // Token limits for different agent types to enforce response length
+        const TOKEN_LIMITS = {
+            debateAgent: 120,      // ~3 sentences for debate agents (FOR/AGAINST)
+            factChecker: 80,       // ~1-2 sentences for fact checker
+            clarification: 100,    // ~2-3 sentences for clarification
+            summarizer: 120,       // Summary points
+            topicIntro: 80         // Brief introduction
+        };
+
         let groq;
-        
+
         // NEW: Sleep helper function
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Helper function to truncate response to maximum sentence count
+        function truncateToSentences(text, maxSentences = 3) {
+            if (!text) return text;
+
+            // Split by sentence endings (., !, ?)
+            const sentenceRegex = /[^.!?]+[.!?]+/g;
+            const sentences = text.match(sentenceRegex);
+
+            if (!sentences || sentences.length <= maxSentences) {
+                return text.trim();
+            }
+
+            // Take only the first maxSentences
+            const truncated = sentences.slice(0, maxSentences).join('').trim();
+            console.warn(`Response truncated from ${sentences.length} to ${maxSentences} sentences`);
+            return truncated;
+        }
 
         // NEW: Tavily AI Search function
         async function searchTavily(query) {
@@ -1033,23 +1060,37 @@
         const PERSONAS = {
             clarification: {
                 name: "Neutral Assistant",
-                systemPrompt: "You are a neutral AI providing factual information. Answer in 2-3 sentences maximum. No opinions or stances."
+                systemPrompt: "You are a neutral AI providing factual information. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. No opinions or stances.",
+                maxTokens: TOKEN_LIMITS.clarification,
+                maxSentences: 3
             },
             factChecker: {
                 name: "Fact Checker",
-                systemPrompt: "You have access to web-sourced verification data. Fact-check ONE claim from the argument using the provided information. Write EXACTLY 1-2 sentences. Start with 'Fact check:' and state if accurate, misleading, or needs context."
+                systemPrompt: "You have access to web-sourced verification data. Fact-check ONE claim from the argument using the provided information. You MUST write EXACTLY 1-2 sentences. Start with 'Fact check:' and state if accurate, misleading, or needs context. DO NOT EXCEED 2 SENTENCES.",
+                maxTokens: TOKEN_LIMITS.factChecker,
+                maxSentences: 2
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, simply write [source] after the claim. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, simply write [source] after the claim.
+
+CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
+                maxTokens: TOKEN_LIMITS.debateAgent,
+                maxSentences: 3
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, simply write [source] after the claim. Be conversational and engaging — MAXIMUM 3 sentences per turn.`
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, simply write [source] after the claim.
+
+CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
+                maxTokens: TOKEN_LIMITS.debateAgent,
+                maxSentences: 3
             },
             summarizer: {
                 name: "Summarizer",
-                systemPrompt: "Create exactly 3 summary points. Write:\nFOR: [One sentence summarizing the best argument in favor]\nAGAINST: [One sentence summarizing the best argument against]\nCONCLUSION: [One sentence about the key tension or tradeoff]\n\nKeep each sentence under 20 words. Be clear and direct."
+                systemPrompt: "Create exactly 3 summary points. Write:\nFOR: [One sentence summarizing the best argument in favor]\nAGAINST: [One sentence summarizing the best argument against]\nCONCLUSION: [One sentence about the key tension or tradeoff]\n\nKeep each sentence under 20 words. Be clear and direct.",
+                maxTokens: TOKEN_LIMITS.summarizer,
+                maxSentences: null  // Has its own format
             }
         };
 
@@ -1058,7 +1099,7 @@
         const appState = {
             participantId: `pid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             currentScreen: 'welcome-screen',
-            interactionMode: null, // 'singleChatbot' or 'dualNegotiation'
+            interactionMode: null, // 'singleChatbot' or 'dualDebate'
             selectedProblemId: null,
             selectedProblem: null,
             isAiThinking: false,
@@ -1066,7 +1107,7 @@
             // Data for Logging
             clarificationChatHistory: [],
             singleChatHistory: [],
-            negotiationHistory: [],
+            debateHistory: [],
             userStance: "",
 
             // Current source URLs for citations
@@ -1092,11 +1133,11 @@
             singleChatForm: document.getElementById('single-chat-form'),
             singleChatInput: document.getElementById('single-chat-input'),
 
-            dualNegotiationView: document.getElementById('dual-negotiation-view'),
-            startNegotiationBtn: document.getElementById('start-negotiation-btn'),
-            negotiationWindow: document.getElementById('negotiation-window'),
-            // NEW: Proceed button for negotiation
-            negotiationProceedBtn: document.getElementById('negotiation-proceed-btn'),
+            dualDebateView: document.getElementById('dual-debate-view'),
+            startDebateBtn: document.getElementById('start-debate-btn'),
+            debateWindow: document.getElementById('debate-window'),
+            // NEW: Proceed button for debate
+            debateProceedBtn: document.getElementById('debate-proceed-btn'),
 
             clarificationPanel: document.getElementById('clarification-panel'),
             clarificationChatWindow: document.getElementById('clarification-chat-window'),
@@ -1112,38 +1153,60 @@
 
         /**
          * Original function to get a non-streamed response.
+         * @param {string} systemPrompt - The system prompt
+         * @param {Array} messageHistory - Message history
+         * @param {number} maxTokens - Maximum tokens for response (optional)
+         * @param {number} maxSentences - Maximum sentences to allow (optional, enforced after generation)
          */
-        async function getFullAiResponse(systemPrompt, messageHistory) {
+        async function getFullAiResponse(systemPrompt, messageHistory, maxTokens = null, maxSentences = null) {
             if (!groq) {
                 console.error("Groq not initialized.");
                 throw new Error("AI connection not established.");
             }
-            
+
             const messages = [
                 { role: "system", content: systemPrompt },
                 ...messageHistory
             ];
-            
-            const completion = await groq.chat.completions.create({
+
+            const apiParams = {
                 messages: messages,
                 model: LLM_MODEL
-            });
-            
-            return completion.choices[0]?.message?.content || "No response.";
+            };
+
+            // Add max_tokens if specified
+            if (maxTokens) {
+                apiParams.max_tokens = maxTokens;
+            }
+
+            const completion = await groq.chat.completions.create(apiParams);
+
+            let response = completion.choices[0]?.message?.content || "No response.";
+
+            // Apply sentence truncation if specified
+            if (maxSentences) {
+                response = truncateToSentences(response, maxSentences);
+            }
+
+            return response;
         }
 
         /**
          * NEW: Wrapper for getFullAiResponse that handles 429 rate limits with exponential backoff.
+         * @param {string} systemPrompt - The system prompt
+         * @param {Array} messageHistory - Message history
+         * @param {number} maxTokens - Maximum tokens for response (optional)
+         * @param {number} maxSentences - Maximum sentences to allow (optional)
          */
-        async function getFullAiResponseWithBackoff(systemPrompt, messageHistory) {
+        async function getFullAiResponseWithBackoff(systemPrompt, messageHistory, maxTokens = null, maxSentences = null) {
             let retries = 0;
             let waitTime = 2000; // Initial wait time 2 seconds
-            
+
             while (retries < MAX_RETRIES) {
                 try {
                     // We only set isAiThinking right before the actual call
                     appState.isAiThinking = true;
-                    const response = await getFullAiResponse(systemPrompt, messageHistory);
+                    const response = await getFullAiResponse(systemPrompt, messageHistory, maxTokens, maxSentences);
                     appState.isAiThinking = false;
                     return response; // Success
                 } catch (error) {
@@ -1170,7 +1233,7 @@
                             waitTime *= 2; // Default exponential backoff
                         }
                         
-                        addMessageToWindow(`Rate limit hit. Waiting for ${Math.round(delay/1000)}s before retrying...`, 'system', elements.negotiationWindow);
+                        addMessageToWindow(`Rate limit hit. Waiting for ${Math.round(delay/1000)}s before retrying...`, 'system', elements.debateWindow);
                         await sleep(delay);
                     } else {
                         // Not a rate limit error, throw it
@@ -1188,8 +1251,10 @@
         /**
          * UPDATED: Now accepts an `avatarClass` and a `thinkingMessageElement`
          * Generic function to stream an AI response to a chat window.
+         * @param {number} maxTokens - Maximum tokens for response (optional)
+         * @param {number} maxSentences - Maximum sentences to allow (optional, enforced after generation)
          */
-        async function streamAiResponse(systemPrompt, messageHistory, targetWindow, speakerName, avatarClass = 'avatar-neutral', thinkingMessageElement) {
+        async function streamAiResponse(systemPrompt, messageHistory, targetWindow, speakerName, avatarClass = 'avatar-neutral', thinkingMessageElement, maxTokens = null, maxSentences = null) {
             if (!groq) {
                 console.error("Groq not initialized.");
                 addMessageToWindow("Error: AI connection not established.", "system", targetWindow);
@@ -1210,11 +1275,18 @@
                     ...messageHistory
                 ];
 
-                const stream = await groq.chat.completions.create({
+                const streamParams = {
                     messages: messages,
                     model: LLM_MODEL,
                     stream: true
-                });
+                };
+
+                // Add max_tokens if specified
+                if (maxTokens) {
+                    streamParams.max_tokens = maxTokens;
+                }
+
+                const stream = await groq.chat.completions.create(streamParams);
 
                 let fullResponse = "";
                 for await (const chunk of stream) {
@@ -1223,6 +1295,13 @@
                     contentElement.textContent = fullResponse; // Update text as it streams
                     targetWindow.scrollTop = targetWindow.scrollHeight;
                 }
+
+                // Apply sentence truncation if specified
+                if (maxSentences) {
+                    fullResponse = truncateToSentences(fullResponse, maxSentences);
+                    contentElement.textContent = fullResponse; // Update with truncated version
+                }
+
                 return fullResponse; // Return the full response for history logging
 
             } catch (error) {
@@ -1296,7 +1375,7 @@
 
             // Reset views
             elements.singleChatView.style.display = 'none';
-            elements.dualNegotiationView.style.display = 'none';
+            elements.dualDebateView.style.display = 'none';
             elements.clarificationPanel.style.display = 'none';
 
             if (appState.interactionMode === 'singleChatbot') {
@@ -1305,14 +1384,14 @@
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.singleChatWindow);
                 appState.singleChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
 
-            } else if (appState.interactionMode === 'dualNegotiation') {
-                elements.dualNegotiationView.style.display = 'flex';
+            } else if (appState.interactionMode === 'dualDebate') {
+                elements.dualDebateView.style.display = 'flex';
                 elements.clarificationPanel.style.display = 'flex';
                 // Add problem context to clarification chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.clarificationChatWindow);
                 appState.clarificationChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
-                // Add context to negotiation window
-                addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.negotiationWindow);
+                // Add context to debate window
+                addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.debateWindow);
             }
         }
 
@@ -1353,16 +1432,18 @@
                     PERSONAS.clarification.name
                 );
 
-                // Get AI response
+                // Get AI response with limits
                 const aiResponse = await streamAiResponse(
                     PERSONAS.clarification.systemPrompt,
                     appState.singleChatHistory,
                     elements.singleChatWindow,
                     PERSONAS.clarification.name,
                     'avatar-neutral',
-                    thinkingMsg // Pass the element to be filled
+                    thinkingMsg,  // Pass the element to be filled
+                    PERSONAS.clarification.maxTokens,     // Apply token limit
+                    PERSONAS.clarification.maxSentences   // Apply sentence limit
                 );
-                
+
                 // Add AI response to history
                 if (aiResponse) {
                     appState.singleChatHistory.push({ role: 'assistant', content: aiResponse });
@@ -1388,30 +1469,32 @@
                     PERSONAS.clarification.name
                 );
                 
-                // Get AI response
+                // Get AI response with limits
                 const aiResponse = await streamAiResponse(
                     PERSONAS.clarification.systemPrompt,
                     appState.clarificationChatHistory,
                     elements.clarificationChatWindow,
                     PERSONAS.clarification.name,
                     'avatar-neutral',
-                    thinkingMsg // Pass the element to be filled
+                    thinkingMsg,  // Pass the element to be filled
+                    PERSONAS.clarification.maxTokens,     // Apply token limit
+                    PERSONAS.clarification.maxSentences   // Apply sentence limit
                 );
-                
+
                 // Add AI response to history
                 if (aiResponse) {
                     appState.clarificationChatHistory.push({ role: 'assistant', content: aiResponse });
                 }
             },
 
-            async runNegotiation() {
-                console.log("Running negotiation...");
-                elements.startNegotiationBtn.disabled = true;
-                elements.startNegotiationBtn.innerHTML = '<span class="spinner"></span> Debate in Progress...';
+            async runDebate() {
+                console.log("Running debate...");
+                elements.startDebateBtn.disabled = true;
+                elements.startDebateBtn.innerHTML = '<span class="spinner"></span> Debate in Progress...';
 
                 const problemText = appState.selectedProblem.fullText;
 
-                appState.negotiationHistory = [];
+                appState.debateHistory = [];
 
                 try {
                     // Search for current information about the topic
@@ -1433,30 +1516,37 @@
                         { role: 'user', content: `Provide a brief 1-2 sentence introduction explaining what this topic is about: ${problemText}${searchContext}` }
                     ];
                     const topicIntro = await getFullAiResponseWithBackoff(
-                        "You are a neutral educator providing clear, unbiased context. Explain the topic in MAXIMUM 2 short sentences (under 30 words total). Be extremely concise.",
-                        introPrompt
+                        "You are a neutral educator providing clear, unbiased context. You MUST explain the topic in EXACTLY 1-2 short sentences (under 30 words total). DO NOT exceed 2 sentences.",
+                        introPrompt,
+                        TOKEN_LIMITS.topicIntro,  // Token limit
+                        2  // Max 2 sentences
                     );
-                    addMessageToWindow(topicIntro, 'topic-intro', elements.negotiationWindow);
+                    addMessageToWindow(topicIntro, 'topic-intro', elements.debateWindow);
                     await sleep(1500); // Brief pause after introduction
 
-                    let negotiationMessageHistory = [
+                    let debateMessageHistory = [
                         { role: 'user', content: `The policy to be debated is: ${problemText}.${searchContext}\n\nProvide your opening statement with evidence-based arguments. Use current data and facts.` }
                     ];
 
-                    for (let i = 0; i < NEGOTIATION_EXCHANGES * 2; i++) {
+                    for (let i = 0; i < DEBATE_EXCHANGES * 2; i++) {
                         const isAgentFor = i % 2 === 0;
                         const agent = isAgentFor ? PERSONAS.agentFor : PERSONAS.agentAgainst;
                         const agentClass = isAgentFor ? 'agent-for' : 'agent-against';
 
-                        // Get agent response
-                        const aiResponse = await getFullAiResponseWithBackoff(agent.systemPrompt, negotiationMessageHistory);
-                        addMessageToWindow(aiResponse, `assistant ${agentClass}`, elements.negotiationWindow, agent.name);
+                        // Get agent response with strict limits
+                        const aiResponse = await getFullAiResponseWithBackoff(
+                            agent.systemPrompt,
+                            debateMessageHistory,
+                            agent.maxTokens,      // Apply token limit from persona
+                            agent.maxSentences    // Apply sentence limit from persona
+                        );
+                        addMessageToWindow(aiResponse, `assistant ${agentClass}`, elements.debateWindow, agent.name);
 
-                        appState.negotiationHistory.push({ speaker: agent.name, text: aiResponse });
-                        negotiationMessageHistory.push({ role: 'assistant', content: aiResponse });
+                        appState.debateHistory.push({ speaker: agent.name, text: aiResponse });
+                        debateMessageHistory.push({ role: 'assistant', content: aiResponse });
 
                         // Add fact-checking after every exchange pair
-                        if (i % 2 === 1 && i < NEGOTIATION_EXCHANGES * 2 - 1) {
+                        if (i % 2 === 1 && i < DEBATE_EXCHANGES * 2 - 1) {
                             await sleep(EXCHANGE_DELAY);
 
                             // Search for verification of claims
@@ -1471,11 +1561,16 @@
                             const factCheckPrompt = [
                                 { role: 'user', content: `Review this argument: "${aiResponse}".${factContext}\n\nFact-check one key claim using the verification data provided.` }
                             ];
-                            const factCheck = await getFullAiResponseWithBackoff(PERSONAS.factChecker.systemPrompt, factCheckPrompt);
-                            addMessageToWindow(factCheck, 'assistant fact-checker', elements.negotiationWindow, PERSONAS.factChecker.name);
+                            const factCheck = await getFullAiResponseWithBackoff(
+                                PERSONAS.factChecker.systemPrompt,
+                                factCheckPrompt,
+                                PERSONAS.factChecker.maxTokens,
+                                PERSONAS.factChecker.maxSentences
+                            );
+                            addMessageToWindow(factCheck, 'assistant fact-checker', elements.debateWindow, PERSONAS.factChecker.name);
                         }
 
-                        negotiationMessageHistory.push({ role: 'user', content: "Respond to the previous argument with evidence." });
+                        debateMessageHistory.push({ role: 'user', content: "Respond to the previous argument with evidence." });
                         await sleep(EXCHANGE_DELAY);
                     }
 
@@ -1494,16 +1589,26 @@
                     const finalFactCheckPrompt = [
                         { role: 'user', content: `Review the overall debate and fact-check one key claim from either side.${finalFactContext}` }
                     ];
-                    const finalFactCheck = await getFullAiResponseWithBackoff(PERSONAS.factChecker.systemPrompt, finalFactCheckPrompt);
-                    addMessageToWindow(finalFactCheck, 'assistant fact-checker', elements.negotiationWindow, PERSONAS.factChecker.name);
+                    const finalFactCheck = await getFullAiResponseWithBackoff(
+                        PERSONAS.factChecker.systemPrompt,
+                        finalFactCheckPrompt,
+                        PERSONAS.factChecker.maxTokens,
+                        PERSONAS.factChecker.maxSentences
+                    );
+                    addMessageToWindow(finalFactCheck, 'assistant fact-checker', elements.debateWindow, PERSONAS.factChecker.name);
 
-                    addMessageToWindow("Debate complete.", 'system', elements.negotiationWindow);
+                    addMessageToWindow("Debate complete.", 'system', elements.debateWindow);
 
                     // Generate TLDR
                     const tldrPrompt = [
-                        { role: 'user', content: `Summarize this debate in exactly 3 short sentences:\n${appState.negotiationHistory.map(h => `${h.speaker}: ${h.text}`).join('\n\n')}` }
+                        { role: 'user', content: `Summarize this debate in exactly 3 short sentences:\n${appState.debateHistory.map(h => `${h.speaker}: ${h.text}`).join('\n\n')}` }
                     ];
-                    const tldr = await getFullAiResponseWithBackoff(PERSONAS.summarizer.systemPrompt, tldrPrompt);
+                    const tldr = await getFullAiResponseWithBackoff(
+                        PERSONAS.summarizer.systemPrompt,
+                        tldrPrompt,
+                        PERSONAS.summarizer.maxTokens,
+                        PERSONAS.summarizer.maxSentences
+                    );
 
                     // Display TLDR as clean bullet points with FOR/AGAINST/CONCLUSION structure
                     const tldrContainer = document.getElementById('tldr-container');
@@ -1535,15 +1640,15 @@
                     </div>`;
                     tldrContainer.innerHTML = tldrHTML;
 
-                    elements.startNegotiationBtn.textContent = "Debate Complete";
-                    elements.negotiationProceedBtn.disabled = false;
-                    elements.negotiationProceedBtn.textContent = "Proceed to Submit Stance";
+                    elements.startDebateBtn.textContent = "Debate Complete";
+                    elements.debateProceedBtn.disabled = false;
+                    elements.debateProceedBtn.textContent = "Proceed to Submit Stance";
 
                 } catch (error) {
-                    console.error("Negotiation failed:", error);
-                    addMessageToWindow(`Error: ${error.message}`, 'system', elements.negotiationWindow);
-                    elements.startNegotiationBtn.textContent = "Debate Failed";
-                    elements.startNegotiationBtn.style.backgroundColor = 'red';
+                    console.error("Debate failed:", error);
+                    addMessageToWindow(`Error: ${error.message}`, 'system', elements.debateWindow);
+                    elements.startDebateBtn.textContent = "Debate Failed";
+                    elements.startDebateBtn.style.backgroundColor = 'red';
                 }
             },
             
@@ -1607,7 +1712,7 @@
                     logs: {
                         singleChatHistory: appState.singleChatHistory,
                         clarificationChatHistory: appState.clarificationChatHistory,
-                        negotiationHistory: appState.negotiationHistory
+                        debateHistory: appState.debateHistory
                     }
                 };
 
