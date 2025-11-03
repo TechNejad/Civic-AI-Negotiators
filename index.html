@@ -9,7 +9,7 @@
     <meta property="og:title" content="Civic Engagement AI Interaction Study">
     <meta property="og:description" content="Interactive research study exploring AI-assisted decision-making on civic topics through single-chatbot dialogue and dual-AI debate formats.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://civic-debaters.netlify.app/">
+    <meta property="og:url" content="https://civic-ai-debate.netlify.app/">
 
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,6 +47,9 @@
 
         /* Responsive base font size */
         html { font-size: 100%; }
+
+        /* Hide honeypot field for spam protection */
+        .hidden { display: none; }
 
         body {
             background: #000000;
@@ -1072,7 +1075,7 @@
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to argue in favor of the topic using a narrative, accessible style. Tell a compelling story about why this matters, using real-world examples. When you cite sources, simply write [source] after the claim.
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue FOR in each exchange. Present arguments that support your assigned position using a narrative, accessible style. Tell a compelling story with real-world examples. When you cite sources, simply write [source] after the claim.
 
 CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1080,7 +1083,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. Your role is to raise concerns using a narrative, accessible style. Tell a compelling story about potential risks or limitations, using real-world examples. When you cite sources, simply write [source] after the claim.
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue AGAINST in each exchange. Present arguments that oppose your assigned position using a narrative, accessible style. Tell a compelling story about concerns, risks, or limitations with real-world examples. When you cite sources, simply write [source] after the claim.
 
 CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1524,26 +1527,38 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                     addMessageToWindow(topicIntro, 'topic-intro', elements.debateWindow);
                     await sleep(1500); // Brief pause after introduction
 
-                    let debateMessageHistory = [
-                        { role: 'user', content: `The policy to be debated is: ${problemText}.${searchContext}\n\nProvide your opening statement with evidence-based arguments. Use current data and facts.` }
+                    // Separate message histories for each agent
+                    let agentForHistory = [
+                        { role: 'user', content: `The topic to be debated is: ${problemText}.${searchContext}\n\nYour position: Argue FOR this topic. Present your opening statement with evidence-based arguments supporting this position. Use current data and facts.` }
+                    ];
+
+                    let agentAgainstHistory = [
+                        { role: 'user', content: `The topic to be debated is: ${problemText}.${searchContext}\n\nYour position: Argue AGAINST this topic. Present your opening statement with evidence-based arguments opposing this position. Use current data and facts.` }
                     ];
 
                     for (let i = 0; i < DEBATE_EXCHANGES * 2; i++) {
                         const isAgentFor = i % 2 === 0;
                         const agent = isAgentFor ? PERSONAS.agentFor : PERSONAS.agentAgainst;
                         const agentClass = isAgentFor ? 'agent-for' : 'agent-against';
+                        const agentHistory = isAgentFor ? agentForHistory : agentAgainstHistory;
+                        const opponentHistory = isAgentFor ? agentAgainstHistory : agentForHistory;
 
                         // Get agent response with strict limits
                         const aiResponse = await getFullAiResponseWithBackoff(
                             agent.systemPrompt,
-                            debateMessageHistory,
+                            agentHistory,
                             agent.maxTokens,      // Apply token limit from persona
                             agent.maxSentences    // Apply sentence limit from persona
                         );
                         addMessageToWindow(aiResponse, `assistant ${agentClass}`, elements.debateWindow, agent.name);
 
                         appState.debateHistory.push({ speaker: agent.name, text: aiResponse });
-                        debateMessageHistory.push({ role: 'assistant', content: aiResponse });
+
+                        // Add the response to this agent's history
+                        agentHistory.push({ role: 'assistant', content: aiResponse });
+
+                        // Add the response to the opponent's history as context
+                        opponentHistory.push({ role: 'user', content: `Your opponent just argued: "${aiResponse}"\n\nRespond to this argument from your assigned position with evidence.` });
 
                         // Add fact-checking after every exchange pair
                         if (i % 2 === 1 && i < DEBATE_EXCHANGES * 2 - 1) {
@@ -1570,7 +1585,6 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                             addMessageToWindow(factCheck, 'assistant fact-checker', elements.debateWindow, PERSONAS.factChecker.name);
                         }
 
-                        debateMessageHistory.push({ role: 'user', content: "Respond to the previous argument with evidence." });
                         await sleep(EXCHANGE_DELAY);
                     }
 
