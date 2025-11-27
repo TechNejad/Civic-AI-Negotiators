@@ -992,7 +992,6 @@
             <!-- This panel is ONLY for Group 2 -->
             <div id="clarification-panel" style="display: none;">
                 <h3>Ask Questions</h3>
-                <p>Ask the neutral AI for factual clarifications.</p>
                 <div class="chat-window" id="clarification-chat-window"></div>
                 <form class="chat-input" id="clarification-chat-form">
                     <input type="text" id="clarification-chat-input" placeholder="Ask a question..." autocomplete="off">
@@ -1570,6 +1569,8 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
             // First, convert ALL citation formats to [source]:
+            // [source 1: text], [source 2: text] etc. - MUST come first (most specific)
+            text = text.replace(/\[source\s*\d+:\s*[^\]]+\]/gi, '[source]');
             // [source: Organization Name] or [source: text]
             text = text.replace(/\[source:\s*[^\]]+\]/gi, '[source]');
             // [1], [2], [3] etc.
@@ -1714,9 +1715,20 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
                 // Clear previous chat windows and histories
                 elements.clarificationChatWindow.innerHTML = '';
                 elements.debateWindow.innerHTML = '';
+                document.getElementById('tldr-container').innerHTML = '';
                 appState.clarificationChatHistory = [];
                 appState.debateHistory = [];
                 appState.currentSourceUrls = [];
+
+                // Reset debate button to initial state
+                elements.startDebateBtn.disabled = false;
+                elements.startDebateBtn.textContent = "Start Debate";
+                elements.startDebateBtn.style.background = "linear-gradient(135deg, #5a7d9a 0%, #4a6d8a 100%)";
+                elements.startDebateBtn.style.backgroundColor = "";
+
+                // Reset proceed button
+                elements.debateProceedBtn.disabled = true;
+                elements.debateProceedBtn.textContent = "Proceed to Final Step";
 
                 // Add problem context to clarification chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.clarificationChatWindow);
