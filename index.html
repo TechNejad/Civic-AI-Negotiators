@@ -311,6 +311,15 @@
             margin: 0.35rem 0;
             content: "";
         }
+        .chat-message ol,
+        .chat-message ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .chat-message li {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
         .chat-message strong {
             font-weight: 600;
         }
@@ -1362,26 +1371,104 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
         function markdownToHtml(text) {
             if (!text) return text;
 
-            // Convert **bold** to <strong>
+            // Step 1: Convert **bold** to <strong>
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-            // Convert double line breaks to paragraph breaks first
-            text = text.replace(/\n\n+/g, '||PARAGRAPH_BREAK||');
+            // Step 2: Split into lines for processing
+            const lines = text.split('\n');
+            const result = [];
+            let inParagraph = false;
+            let listType = null; // 'ol' or 'ul' or null
 
-            // Convert single line breaks to <br> tags
-            text = text.replace(/\n/g, '<br>');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
 
-            // Convert paragraph break markers to actual paragraph tags
-            text = text.replace(/\|\|PARAGRAPH_BREAK\|\|/g, '</p><p>');
+                // Empty line - close any open tags
+                if (!line) {
+                    if (listType) {
+                        result.push(`</${listType}>`);
+                        listType = null;
+                    }
+                    if (inParagraph) {
+                        result.push('</p>');
+                        inParagraph = false;
+                    }
+                    continue;
+                }
 
-            // Wrap in paragraph tags
-            text = '<p>' + text + '</p>';
+                // Numbered list item (1., 2., 3., etc.) - but only if there's content after
+                const numberedMatch = line.match(/^\d+\.\s+(.+)/);
+                if (numberedMatch) {
+                    if (inParagraph) {
+                        result.push('</p>');
+                        inParagraph = false;
+                    }
+                    if (listType !== 'ol') {
+                        if (listType) result.push(`</${listType}>`);
+                        result.push('<ol style="margin: 0.5rem 0; padding-left: 1.5rem;">');
+                        listType = 'ol';
+                    }
+                    result.push(`<li style="margin: 0.5rem 0;">${numberedMatch[1]}</li>`);
+                }
+                // Bullet list item (- or *)
+                else if (line.match(/^[-*]\s+/)) {
+                    if (inParagraph) {
+                        result.push('</p>');
+                        inParagraph = false;
+                    }
+                    if (listType !== 'ul') {
+                        if (listType) result.push(`</${listType}>`);
+                        result.push('<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">');
+                        listType = 'ul';
+                    }
+                    const content = line.replace(/^[-*]\s+/, '');
+                    result.push(`<li style="margin: 0.5rem 0;">${content}</li>`);
+                }
+                // Standalone number (1., 2., etc. with nothing after) - treat as heading
+                else if (line.match(/^\d+\.$/)) {
+                    if (listType) {
+                        result.push(`</${listType}>`);
+                        listType = null;
+                    }
+                    if (inParagraph) {
+                        result.push('</p>');
+                        inParagraph = false;
+                    }
+                    result.push(`<p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong>${line}</strong></p>`);
+                }
+                // Section heading (line ending with : and starts with capital)
+                else if (line.endsWith(':') && line.match(/^[A-Z]/)) {
+                    if (listType) {
+                        result.push(`</${listType}>`);
+                        listType = null;
+                    }
+                    if (inParagraph) {
+                        result.push('</p>');
+                        inParagraph = false;
+                    }
+                    result.push(`<p style="margin-top: 0.75rem; margin-bottom: 0.25rem;"><strong>${line}</strong></p>`);
+                }
+                // Regular paragraph text
+                else {
+                    if (listType) {
+                        result.push(`</${listType}>`);
+                        listType = null;
+                    }
+                    if (!inParagraph) {
+                        result.push('<p style="margin: 0.5rem 0;">');
+                        inParagraph = true;
+                    } else {
+                        result.push('<br>');
+                    }
+                    result.push(line);
+                }
+            }
 
-            // Clean up empty paragraphs
-            text = text.replace(/<p><\/p>/g, '');
-            text = text.replace(/<p>\s*<\/p>/g, '');
+            // Close any remaining tags
+            if (listType) result.push(`</${listType}>`);
+            if (inParagraph) result.push('</p>');
 
-            return text;
+            return result.join('');
         }
 
         // Helper function to convert [source] citations to clickable links
@@ -1426,8 +1513,12 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 html += `<strong>${speakerName}</strong>`;
             }
 
-            // Convert [source] citations to clickable links
-            const processedText = convertSourceCitations(text, appState.currentSourceUrls);
+            // Apply markdown conversion for assistant messages, then convert citations
+            let processedText = text;
+            if (sender.includes('assistant')) {
+                processedText = markdownToHtml(text);
+            }
+            processedText = convertSourceCitations(processedText, appState.currentSourceUrls);
             html += processedText;
 
             msg.innerHTML = html;
@@ -1517,6 +1608,14 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             } else if (appState.interactionMode === 'dualDebate') {
                 elements.dualDebateView.style.display = 'flex';
                 elements.clarificationPanel.style.display = 'flex';
+
+                // Clear previous chat windows and histories
+                elements.clarificationChatWindow.innerHTML = '';
+                elements.debateWindow.innerHTML = '';
+                appState.clarificationChatHistory = [];
+                appState.debateHistory = [];
+                appState.currentSourceUrls = [];
+
                 // Add problem context to clarification chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.clarificationChatWindow);
                 appState.clarificationChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
@@ -1656,6 +1755,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                     const searchResults = await searchTavily(searchQuery);
 
                     let searchContext = "";
+                    // Always reset URLs to prevent stale data
+                    appState.currentSourceUrls = [];
+
                     if (searchResults && searchResults.answer) {
                         searchContext = `\n\nCurrent information: ${searchResults.answer}`;
                         if (searchResults.results && searchResults.results.length > 0) {
@@ -1663,6 +1765,8 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                             appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
                             searchContext += `\n\n(Sources are available - cite claims by writing [source])`;
                         }
+                    } else {
+                        console.warn('Tavily search failed for debate opening:', searchQuery);
                     }
 
                     // First, provide a brief topic introduction
