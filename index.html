@@ -296,39 +296,6 @@
             line-height: 1.6;
             font-size: 0.95rem;
         }
-        .chat-message .content {
-            display: block;
-        }
-        .chat-message .content p {
-            margin: 0.75rem 0;
-            line-height: 1.6;
-        }
-        .chat-message .content p:first-child {
-            margin-top: 0;
-        }
-        .chat-message .content p:last-child {
-            margin-bottom: 0;
-        }
-        .chat-message .content br {
-            display: block;
-            margin: 0.25rem 0;
-            content: "";
-        }
-        .chat-message .content ul {
-            margin: 0.5rem 0;
-            padding-left: 1.5rem;
-        }
-        .chat-message .content li {
-            margin: 0.25rem 0;
-        }
-        .chat-message .content strong {
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-        .chat-message.assistant .content strong {
-            color: var(--text-color);
-            font-weight: 700;
-        }
         .chat-message.user {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
             color: #ffffff;
@@ -888,6 +855,7 @@
             <div style="margin-top: 2rem;">
                 <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Or define your own topic:</h3>
                 <input type="text" id="custom-topic-title" placeholder="Topic title (e.g., Universal Basic Income)" style="width: 100%; padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem;">
+                <textarea id="custom-topic-description" placeholder="Brief description of the topic and key points of debate..." style="width: 100%; height: 100px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; resize: vertical;"></textarea>
                 <button onclick="app.selectCustomTopic()" style="margin-top: 0.5rem;">Use Custom Topic</button>
             </div>
         </div>
@@ -1093,12 +1061,6 @@
         };
 
         const PERSONAS = {
-            singleChatbot: {
-                name: "Assistant",
-                systemPrompt: `You are a helpful AI assistant. Answer questions about civic and public policy topics clearly and directly. When you cite sources, simply write [source] after the claim.`,
-                maxTokens: 250,
-                maxSentences: null
-            },
             clarification: {
                 name: "Neutral Assistant",
                 systemPrompt: "You are a neutral AI providing factual information. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. No opinions or stances.",
@@ -1333,21 +1295,14 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 for await (const chunk of stream) {
                     const content = chunk.choices[0]?.delta?.content || "";
                     fullResponse += content;
-
-                    // Convert markdown and sources on each update for live rendering
-                    let displayText = markdownToHtml(fullResponse);
-                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
-                    contentElement.innerHTML = displayText; // Use innerHTML to render HTML
-
+                    contentElement.textContent = fullResponse; // Update text as it streams
                     targetWindow.scrollTop = targetWindow.scrollHeight;
                 }
 
                 // Apply sentence truncation if specified
                 if (maxSentences) {
                     fullResponse = truncateToSentences(fullResponse, maxSentences);
-                    let displayText = markdownToHtml(fullResponse);
-                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
-                    contentElement.innerHTML = displayText; // Update with truncated version
+                    contentElement.textContent = fullResponse; // Update with truncated version
                 }
 
                 return fullResponse; // Return the full response for history logging
@@ -1368,74 +1323,13 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             appState.currentScreen = screenId;
         }
 
-        // Helper function to convert basic markdown to HTML
-        function markdownToHtml(text) {
-            if (!text) return text;
-
-            // Convert **bold text** or **bold:** to <strong> (before line breaks)
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-            // Split into paragraphs by double line breaks
-            const rawParagraphs = text.split(/\n\n+/);
-            let result = [];
-
-            for (let para of rawParagraphs) {
-                if (!para.trim()) continue;
-
-                // Split paragraph into lines
-                const lines = para.split('\n');
-                let inList = false;
-                let paraResult = [];
-
-                for (let line of lines) {
-                    const trimmedLine = line.trim();
-                    if (!trimmedLine) continue;
-
-                    // Check if line starts with bullet point (- or * followed by space)
-                    if (trimmedLine.match(/^[*\-]\s+/)) {
-                        if (!inList) {
-                            paraResult.push('<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">');
-                            inList = true;
-                        }
-                        // Remove the bullet marker and wrap in <li>
-                        const content = trimmedLine.replace(/^[*\-]\s+/, '');
-                        paraResult.push(`<li style="margin: 0.25rem 0;">${content}</li>`);
-                    } else {
-                        // Close list if we were in one
-                        if (inList) {
-                            paraResult.push('</ul>');
-                            inList = false;
-                        }
-                        paraResult.push(trimmedLine);
-                    }
-                }
-
-                // Close list if still open
-                if (inList) {
-                    paraResult.push('</ul>');
-                }
-
-                // Join lines within paragraph with <br>
-                const paraHtml = paraResult.join('<br>');
-                result.push(`<p>${paraHtml}</p>`);
-            }
-
-            return result.join('');
-        }
-
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
             if (!sourceUrls || sourceUrls.length === 0) {
-                // If no URLs, still clean up organization citations
-                text = text.replace(/\[[A-Z][^\]]*\]/g, '[source]');
                 return text;
             }
 
             let urlIndex = 0;
-
-            // First, convert ANY bracketed organization name [ORGANIZATION] or [source: ...] to [source]
-            // Match any brackets containing capital letters or "source"
-            text = text.replace(/\[(?:source:[^\]]+|[A-Z][^\]]*)\]/gi, '[source]');
 
             // Replace each [source] with a clickable link, cycling through available URLs
             return text.replace(/\[source\]/gi, (match) => {
@@ -1457,18 +1351,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 html += `<strong>${speakerName}</strong>`;
             }
 
-            // Convert markdown to HTML
-            let processedText = markdownToHtml(text);
-
             // Convert [source] citations to clickable links
-            processedText = convertSourceCitations(processedText, appState.currentSourceUrls);
-
-            // Wrap content in a span for consistent styling
-            if (sender.includes('assistant') || sender === 'user') {
-                html += `<span class="content">${processedText}</span>`;
-            } else {
-                html += processedText;
-            }
+            const processedText = convertSourceCitations(text, appState.currentSourceUrls);
+            html += processedText;
 
             msg.innerHTML = html;
 
@@ -1487,7 +1372,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             }
         }
         
-        async function setupInteractionScreen() {
+        function setupInteractionScreen() {
             const problem = appState.selectedProblem;
             if (!problem) return;
 
@@ -1498,68 +1383,13 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
             if (appState.interactionMode === 'singleChatbot') {
                 elements.singleChatView.style.display = 'flex';
-
-                // Clear previous chat and history
-                elements.singleChatWindow.innerHTML = '';
-                appState.singleChatHistory = [];
-                appState.currentSourceUrls = [];
-
                 // Add problem context to chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.singleChatWindow);
                 appState.singleChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
 
-                // NEW: Automatically provide opening context summary
-                const openingMsg = addMessageToWindow(
-                    "Loading context...",
-                    "assistant avatar-neutral thinking",
-                    elements.singleChatWindow,
-                    PERSONAS.singleChatbot.name
-                );
-
-                // Search for current information about the topic
-                const searchQuery = `${problem.title} overview key facts latest 2024 2025`;
-                const searchResults = await searchTavily(searchQuery);
-
-                let searchContext = "";
-                if (searchResults && searchResults.answer) {
-                    searchContext = `\n\nCurrent information: ${searchResults.answer}`;
-                    if (searchResults.results && searchResults.results.length > 0) {
-                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
-                    }
-                }
-
-                const openingPrompt = [{
-                    role: 'user',
-                    content: `Explain this topic: ${problem.fullText}${searchContext}`
-                }];
-
-                const openingSummary = await streamAiResponse(
-                    PERSONAS.singleChatbot.systemPrompt,
-                    openingPrompt,
-                    elements.singleChatWindow,
-                    PERSONAS.singleChatbot.name,
-                    'avatar-neutral',
-                    openingMsg,
-                    PERSONAS.singleChatbot.maxTokens,
-                    PERSONAS.singleChatbot.maxSentences
-                );
-
-                if (openingSummary) {
-                    appState.singleChatHistory.push({ role: 'assistant', content: openingSummary });
-                }
-
             } else if (appState.interactionMode === 'dualDebate') {
                 elements.dualDebateView.style.display = 'flex';
                 elements.clarificationPanel.style.display = 'flex';
-
-                // Clear previous chat and history
-                elements.clarificationChatWindow.innerHTML = '';
-                elements.debateWindow.innerHTML = '';
-                appState.clarificationChatHistory = [];
-                appState.debateHistory = [];
-                appState.currentSourceUrls = [];
-
                 // Add problem context to clarification chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.clarificationChatWindow);
                 appState.clarificationChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
@@ -1591,49 +1421,30 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const input = elements.singleChatInput;
                 const userInput = input.value.trim();
                 if (!userInput || appState.isAiThinking) return;
-
+                
                 // Add user message to UI and history
                 addMessageToWindow(userInput, 'user', elements.singleChatWindow, "You");
+                appState.singleChatHistory.push({ role: 'user', content: userInput });
                 input.value = "";
-
+                
                 // NEW: Add "Thinking..." message and pass it to the stream function
                 const thinkingMsg = addMessageToWindow(
-                    "Thinking",
-                    "assistant avatar-neutral thinking",
-                    elements.singleChatWindow,
-                    PERSONAS.singleChatbot.name
+                    "Thinking", 
+                    "assistant avatar-neutral thinking", 
+                    elements.singleChatWindow, 
+                    PERSONAS.clarification.name
                 );
 
-                // NEW: Search for current information related to the user's question
-                const searchQuery = `${userInput} ${appState.selectedProblem.title}`;
-                const searchResults = await searchTavily(searchQuery);
-
-                let searchContext = "";
-                if (searchResults && searchResults.answer) {
-                    searchContext = `\n\nCurrent web information: ${searchResults.answer}`;
-                    if (searchResults.results && searchResults.results.length > 0) {
-                        // Store URLs for citation conversion
-                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
-                    }
-                }
-
-                // Add user question with search context to history
-                appState.singleChatHistory.push({
-                    role: 'user',
-                    content: userInput + searchContext
-                });
-
-                // Get AI response with new persona and limits
+                // Get AI response with limits
                 const aiResponse = await streamAiResponse(
-                    PERSONAS.singleChatbot.systemPrompt,
+                    PERSONAS.clarification.systemPrompt,
                     appState.singleChatHistory,
                     elements.singleChatWindow,
-                    PERSONAS.singleChatbot.name,
+                    PERSONAS.clarification.name,
                     'avatar-neutral',
                     thinkingMsg,  // Pass the element to be filled
-                    PERSONAS.singleChatbot.maxTokens,
-                    PERSONAS.singleChatbot.maxSentences
+                    PERSONAS.clarification.maxTokens,     // Apply token limit
+                    PERSONAS.clarification.maxSentences   // Apply sentence limit
                 );
 
                 // Add AI response to history
@@ -1877,18 +1688,18 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             // Custom topic selection
             selectCustomTopic() {
                 const title = document.getElementById('custom-topic-title').value.trim();
+                const description = document.getElementById('custom-topic-description').value.trim();
 
-                if (!title) {
-                    alert('Please provide a topic title.');
+                if (!title || !description) {
+                    alert('Please provide both a title and description for your custom topic.');
                     return;
                 }
 
-                // Create a custom problem object with just the title
-                // The AI will generate context automatically using web search
+                // Create a custom problem object
                 const customId = 'custom-' + Date.now();
                 PROBLEMS[customId] = {
                     title: title,
-                    fullText: `A policy or civic issue regarding: ${title}. Research and explore the key aspects, arguments, and perspectives on this topic.`
+                    fullText: description
                 };
 
                 app.selectProblem(customId);
