@@ -855,7 +855,6 @@
             <div style="margin-top: 2rem;">
                 <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Or define your own topic:</h3>
                 <input type="text" id="custom-topic-title" placeholder="Topic title (e.g., Universal Basic Income)" style="width: 100%; padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem;">
-                <textarea id="custom-topic-description" placeholder="Brief description of the topic and key points of debate..." style="width: 100%; height: 100px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; resize: vertical;"></textarea>
                 <button onclick="app.selectCustomTopic()" style="margin-top: 0.5rem;">Use Custom Topic</button>
             </div>
         </div>
@@ -1061,6 +1060,19 @@
         };
 
         const PERSONAS = {
+            singleChatbot: {
+                name: "Civic Policy Assistant",
+                systemPrompt: `You are an AI assistant helping users understand complex civic policy issues through conversation. Provide balanced, comprehensive explanations that cover:
+- Key facts and context about the issue
+- Main arguments and reasoning FOR the policy/position
+- Main arguments and concerns AGAINST the policy/position
+- Real-world implications and examples
+- Different stakeholder perspectives
+
+Be thorough yet accessible. Acknowledge complexity and tradeoffs. Use 1-3 paragraphs per response as needed to give a complete answer. When you cite sources or statistics, write [source] after the claim.`,
+                maxTokens: 400,
+                maxSentences: null
+            },
             clarification: {
                 name: "Neutral Assistant",
                 systemPrompt: "You are a neutral AI providing factual information. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. No opinions or stances.",
@@ -1372,7 +1384,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             }
         }
         
-        function setupInteractionScreen() {
+        async function setupInteractionScreen() {
             const problem = appState.selectedProblem;
             if (!problem) return;
 
@@ -1386,6 +1398,47 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 // Add problem context to chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.singleChatWindow);
                 appState.singleChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
+
+                // NEW: Automatically provide opening context summary
+                const openingMsg = addMessageToWindow(
+                    "Loading context...",
+                    "assistant avatar-neutral thinking",
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name
+                );
+
+                // Search for current information about the topic
+                const searchQuery = `${problem.title} overview key facts latest 2024 2025`;
+                const searchResults = await searchTavily(searchQuery);
+
+                let searchContext = "";
+                if (searchResults && searchResults.answer) {
+                    searchContext = `\n\nCurrent information: ${searchResults.answer}`;
+                    if (searchResults.results && searchResults.results.length > 0) {
+                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
+                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                    }
+                }
+
+                const openingPrompt = [{
+                    role: 'user',
+                    content: `Provide a comprehensive opening overview of this policy topic: ${problem.fullText}${searchContext}\n\nCover: what the issue is, why it matters, and the main perspectives (for/against). Be welcoming and encourage the user to ask questions.`
+                }];
+
+                const openingSummary = await streamAiResponse(
+                    PERSONAS.singleChatbot.systemPrompt,
+                    openingPrompt,
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name,
+                    'avatar-neutral',
+                    openingMsg,
+                    PERSONAS.singleChatbot.maxTokens,
+                    PERSONAS.singleChatbot.maxSentences
+                );
+
+                if (openingSummary) {
+                    appState.singleChatHistory.push({ role: 'assistant', content: openingSummary });
+                }
 
             } else if (appState.interactionMode === 'dualDebate') {
                 elements.dualDebateView.style.display = 'flex';
@@ -1421,30 +1474,49 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const input = elements.singleChatInput;
                 const userInput = input.value.trim();
                 if (!userInput || appState.isAiThinking) return;
-                
+
                 // Add user message to UI and history
                 addMessageToWindow(userInput, 'user', elements.singleChatWindow, "You");
-                appState.singleChatHistory.push({ role: 'user', content: userInput });
                 input.value = "";
-                
+
                 // NEW: Add "Thinking..." message and pass it to the stream function
                 const thinkingMsg = addMessageToWindow(
-                    "Thinking", 
-                    "assistant avatar-neutral thinking", 
-                    elements.singleChatWindow, 
-                    PERSONAS.clarification.name
+                    "Thinking",
+                    "assistant avatar-neutral thinking",
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name
                 );
 
-                // Get AI response with limits
+                // NEW: Search for current information related to the user's question
+                const searchQuery = `${userInput} ${appState.selectedProblem.title}`;
+                const searchResults = await searchTavily(searchQuery);
+
+                let searchContext = "";
+                if (searchResults && searchResults.answer) {
+                    searchContext = `\n\nCurrent web information: ${searchResults.answer}`;
+                    if (searchResults.results && searchResults.results.length > 0) {
+                        // Store URLs for citation conversion
+                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
+                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                    }
+                }
+
+                // Add user question with search context to history
+                appState.singleChatHistory.push({
+                    role: 'user',
+                    content: userInput + searchContext
+                });
+
+                // Get AI response with new persona and limits
                 const aiResponse = await streamAiResponse(
-                    PERSONAS.clarification.systemPrompt,
+                    PERSONAS.singleChatbot.systemPrompt,
                     appState.singleChatHistory,
                     elements.singleChatWindow,
-                    PERSONAS.clarification.name,
+                    PERSONAS.singleChatbot.name,
                     'avatar-neutral',
                     thinkingMsg,  // Pass the element to be filled
-                    PERSONAS.clarification.maxTokens,     // Apply token limit
-                    PERSONAS.clarification.maxSentences   // Apply sentence limit
+                    PERSONAS.singleChatbot.maxTokens,
+                    PERSONAS.singleChatbot.maxSentences
                 );
 
                 // Add AI response to history
@@ -1688,18 +1760,18 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             // Custom topic selection
             selectCustomTopic() {
                 const title = document.getElementById('custom-topic-title').value.trim();
-                const description = document.getElementById('custom-topic-description').value.trim();
 
-                if (!title || !description) {
-                    alert('Please provide both a title and description for your custom topic.');
+                if (!title) {
+                    alert('Please provide a topic title.');
                     return;
                 }
 
-                // Create a custom problem object
+                // Create a custom problem object with just the title
+                // The AI will generate context automatically using web search
                 const customId = 'custom-' + Date.now();
                 PROBLEMS[customId] = {
                     title: title,
-                    fullText: description
+                    fullText: `A policy or civic issue regarding: ${title}. Research and explore the key aspects, arguments, and perspectives on this topic.`
                 };
 
                 app.selectProblem(customId);
