@@ -306,6 +306,11 @@
         .chat-message p:last-child {
             margin-bottom: 0;
         }
+        .chat-message br {
+            display: block;
+            margin: 0.35rem 0;
+            content: "";
+        }
         .chat-message strong {
             font-weight: 600;
         }
@@ -1360,11 +1365,21 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             // Convert **bold** to <strong>
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-            // Convert double line breaks to paragraph breaks
-            text = text.replace(/\n\n+/g, '</p><p>');
+            // Convert double line breaks to paragraph breaks first
+            text = text.replace(/\n\n+/g, '||PARAGRAPH_BREAK||');
+
+            // Convert single line breaks to <br> tags
+            text = text.replace(/\n/g, '<br>');
+
+            // Convert paragraph break markers to actual paragraph tags
+            text = text.replace(/\|\|PARAGRAPH_BREAK\|\|/g, '</p><p>');
 
             // Wrap in paragraph tags
             text = '<p>' + text + '</p>';
+
+            // Clean up empty paragraphs
+            text = text.replace(/<p><\/p>/g, '');
+            text = text.replace(/<p>\s*<\/p>/g, '');
 
             return text;
         }
@@ -1466,12 +1481,17 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const searchResults = await searchTavily(searchQuery);
 
                 let searchContext = "";
+                // Always reset URLs to prevent stale data
+                appState.currentSourceUrls = [];
+
                 if (searchResults && searchResults.answer) {
                     searchContext = `\n\nCurrent information: ${searchResults.answer}`;
                     if (searchResults.results && searchResults.results.length > 0) {
                         appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
                         searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
                     }
+                } else {
+                    console.warn('Tavily search failed for opening query:', searchQuery);
                 }
 
                 const openingPrompt = [{
@@ -1546,6 +1566,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const searchResults = await searchTavily(searchQuery);
 
                 let searchContext = "";
+                // Always reset URLs to prevent stale data from previous queries
+                appState.currentSourceUrls = [];
+
                 if (searchResults && searchResults.answer) {
                     searchContext = `\n\nCurrent web information: ${searchResults.answer}`;
                     if (searchResults.results && searchResults.results.length > 0) {
@@ -1553,6 +1576,8 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                         appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
                         searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
                     }
+                } else {
+                    console.warn('Tavily search failed for user query:', searchQuery);
                 }
 
                 // Add user question with search context to history
@@ -1824,7 +1849,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const customId = 'custom-' + Date.now();
                 PROBLEMS[customId] = {
                     title: title,
-                    fullText: `${title}. Explore this topic with current information and evidence.`
+                    fullText: title  // Just use the title - let search and AI handle the rest
                 };
 
                 app.selectProblem(customId);
