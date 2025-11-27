@@ -1325,6 +1325,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
+            // First, convert ALL numbered citations [1], [2], [3] etc. to [source]
+            text = text.replace(/\[\d+\]/g, '[source]');
+
             if (!sourceUrls || sourceUrls.length === 0) {
                 return text;
             }
