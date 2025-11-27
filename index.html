@@ -593,6 +593,69 @@
             background-color: var(--primary-hover);
         }
 
+        /* Knowledge Rating Screen Styling */
+        #knowledge-rating-screen {
+            text-align: center;
+            align-items: center;
+        }
+
+        .rating-container {
+            margin: 3rem auto;
+            max-width: 700px;
+        }
+
+        .rating-scale {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 2rem 0;
+        }
+
+        .rating-option {
+            flex: 1;
+            min-width: 50px;
+            height: 50px;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            background: var(--container-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-color);
+        }
+
+        .rating-option:hover {
+            background: var(--secondary-color);
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .rating-option.selected {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            border-color: var(--primary-color);
+            color: #ffffff;
+            transform: scale(1.15);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .rating-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #5d6369;
+            font-weight: 500;
+        }
+
+        .rating-labels span {
+            max-width: 150px;
+        }
+
         /* Mobile Responsive Styles */
         @media screen and (max-width: 768px) {
             body {
@@ -900,8 +963,8 @@
                         <input type="text" id="single-chat-input" placeholder="Ask a question..." autocomplete="off">
                         <button type="submit">Send</button>
                     </form>
-                    <button class="proceed-btn" onclick="app.goToStanceScreen()">
-                        Proceed to Submit Stance
+                    <button class="proceed-btn" onclick="app.goToRatingScreen()">
+                        Proceed to Final Step
                     </button>
                 </div>
 
@@ -913,8 +976,8 @@
                     <button id="start-debate-btn" onclick="app.runDebate()">Start Debate</button>
                     <div class="chat-window" id="debate-window"></div>
                     <div id="tldr-container"></div>
-                    <button id="debate-proceed-btn" class="proceed-btn" onclick="app.goToStanceScreen()" disabled>
-                        Proceed to Submit Stance
+                    <button id="debate-proceed-btn" class="proceed-btn" onclick="app.goToRatingScreen()" disabled>
+                        Proceed to Final Step
                     </button>
                 </div>
             </div>
@@ -931,23 +994,46 @@
             </div>
         </div>
 
-        <!-- Screen 4: Stance Submission -->
-        <div class="screen" id="stance-submission-screen">
+        <!-- Screen 4: Knowledge Rating -->
+        <div class="screen" id="knowledge-rating-screen">
             <button class="back-btn" onclick="app.goBack()">← Back</button>
-            <h2>Step 3: Submit Your Stance</h2>
-            <p>Write your position on the policy based on what you learned.</p>
-            <p><strong>Topic:</strong> <span id="stance-topic-title"></span></p>
-            <form id="stance-form" name="stance" netlify netlify-honeypot="bot-field">
-                <input type="hidden" name="form-name" value="stance" />
-                <p class="hidden">
-                    <label>Don’t fill this out if you’re human: <input name="bot-field" /></label>
-                </p>
-                <textarea id="stance-textarea" name="stance" placeholder="Enter your stance here..."></textarea>
-                <input type="hidden" name="submission-data" id="submission-data-input">
-                <button type="submit" id="submit-stance-btn" class="proceed-btn">
-                    Submit Final Stance
-                </button>
-            </form>
+            <div class="rating-container">
+                <h2>Final Step: Self-Assessment</h2>
+                <p style="font-size: 1.1rem; margin: 1.5rem 0;">How confident are you about your knowledge of the topic you just explored?</p>
+                <p><strong>Topic:</strong> <span id="rating-topic-title"></span></p>
+
+                <form id="rating-form" name="rating" netlify netlify-honeypot="bot-field">
+                    <input type="hidden" name="form-name" value="rating" />
+                    <p class="hidden">
+                        <label>Don't fill this out if you're human: <input name="bot-field" /></label>
+                    </p>
+
+                    <div class="rating-scale" id="rating-scale">
+                        <div class="rating-option" data-value="1" onclick="app.selectRating(1)">1</div>
+                        <div class="rating-option" data-value="2" onclick="app.selectRating(2)">2</div>
+                        <div class="rating-option" data-value="3" onclick="app.selectRating(3)">3</div>
+                        <div class="rating-option" data-value="4" onclick="app.selectRating(4)">4</div>
+                        <div class="rating-option" data-value="5" onclick="app.selectRating(5)">5</div>
+                        <div class="rating-option" data-value="6" onclick="app.selectRating(6)">6</div>
+                        <div class="rating-option" data-value="7" onclick="app.selectRating(7)">7</div>
+                        <div class="rating-option" data-value="8" onclick="app.selectRating(8)">8</div>
+                        <div class="rating-option" data-value="9" onclick="app.selectRating(9)">9</div>
+                        <div class="rating-option" data-value="10" onclick="app.selectRating(10)">10</div>
+                    </div>
+
+                    <div class="rating-labels">
+                        <span>Not at all confident</span>
+                        <span>Very confident</span>
+                    </div>
+
+                    <input type="hidden" name="knowledge-rating" id="rating-value-input">
+                    <input type="hidden" name="submission-data" id="submission-data-input">
+
+                    <button type="submit" class="proceed-btn" id="rating-submit-btn" disabled>
+                        Submit Response
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Screen 5: Complete -->
@@ -1096,9 +1182,9 @@
         const PERSONAS = {
             singleChatbot: {
                 name: "Assistant",
-                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly. When you cite sources, simply write [source] after the claim.",
-                maxTokens: 300,
-                maxSentences: null
+                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly in 3-5 short, sharp sentences. Be concise and to the point. CRITICAL: Only write [source] after a claim if you are using information from the 'Current information' or 'Current web information' provided to you AND you have been told sources are available. Never write [source] for general knowledge or if no sources were provided. Each [source] must correspond to a specific fact from the search results.",
+                maxTokens: 500,
+                maxSentences: 5
             },
             clarification: {
                 name: "Neutral Assistant",
@@ -1114,7 +1200,9 @@
             },
             agentFor: {
                 name: "Agent For",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue FOR in each exchange. Present arguments that support your assigned position using a narrative, accessible style. Tell a compelling story with real-world examples. When you cite sources, simply write [source] after the claim.
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue FOR in each exchange. Present arguments that support your assigned position using a narrative, accessible style. Tell a compelling story with real-world examples.
+
+CITATION RULE: Only write [source] after a claim if you are directly using information from the 'Current information' provided to you AND you have been told sources are available. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results. Do not exceed the number of sources available.
 
 CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1122,7 +1210,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             },
             agentAgainst: {
                 name: "Agent Against",
-                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue AGAINST in each exchange. Present arguments that oppose your assigned position using a narrative, accessible style. Tell a compelling story about concerns, risks, or limitations with real-world examples. When you cite sources, simply write [source] after the claim.
+                systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue AGAINST in each exchange. Present arguments that oppose your assigned position using a narrative, accessible style. Tell a compelling story about concerns, risks, or limitations with real-world examples.
+
+CITATION RULE: Only write [source] after a claim if you are directly using information from the 'Current information' provided to you AND you have been told sources are available. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results. Do not exceed the number of sources available.
 
 CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1150,7 +1240,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             clarificationChatHistory: [],
             singleChatHistory: [],
             debateHistory: [],
-            userStance: "",
+            knowledgeRating: null,
 
             // Current source URLs for citations
             currentSourceUrls: []
@@ -1162,13 +1252,13 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             welcome: document.getElementById('welcome-screen'),
             problemSelection: document.getElementById('problem-selection-screen'),
             interaction: document.getElementById('interaction-screen'),
-            stanceSubmission: document.getElementById('stance-submission-screen'),
+            knowledgeRating: document.getElementById('knowledge-rating-screen'),
             complete: document.getElementById('complete-screen')
         };
 
         const elements = {
             problemList: document.getElementById('problem-list'),
-            
+
             // Interaction Screen Components
             singleChatView: document.getElementById('single-chatbot-view'),
             singleChatWindow: document.getElementById('single-chat-window'),
@@ -1185,10 +1275,6 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             clarificationChatWindow: document.getElementById('clarification-chat-window'),
             clarificationChatForm: document.getElementById('clarification-chat-form'),
             clarificationChatInput: document.getElementById('clarification-chat-input'),
-
-            // Stance Screen
-            stanceTopicTitle: document.getElementById('stance-topic-title'),
-            stanceTextarea: document.getElementById('stance-textarea'),
         };
 
         // --- 5. CORE API FUNCTIONS ---
@@ -1488,19 +1574,22 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             text = text.replace(/(\[source\]\s*)+/gi, '[source]');
 
             if (!sourceUrls || sourceUrls.length === 0) {
-                return text;
+                // If no sources available, remove all [source] tags to avoid confusion
+                return text.replace(/\[source\]/gi, '');
             }
 
             let urlIndex = 0;
 
-            // Replace each [source] with a clickable link, cycling through available URLs
+            // Replace each [source] with a clickable link, up to the number of available URLs
+            // Any citations beyond available sources are removed to avoid misleading links
             return text.replace(/\[source\]/gi, (match) => {
                 if (urlIndex < sourceUrls.length) {
                     const url = sourceUrls[urlIndex];
                     urlIndex++;
                     return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; font-weight: 500;" title="View source">[source]</a>`;
                 }
-                return match; // Return unchanged if we've run out of URLs
+                // Remove excess [source] tags that don't have corresponding URLs
+                return '';
             });
         }
 
@@ -1576,10 +1665,13 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 appState.currentSourceUrls = [];
 
                 if (searchResults && searchResults.answer) {
-                    searchContext = `\n\nCurrent information: ${searchResults.answer}`;
+                    searchContext = `\n\nCurrent information from web search: ${searchResults.answer}`;
                     if (searchResults.results && searchResults.results.length > 0) {
                         appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                        const numSources = appState.currentSourceUrls.length;
+                        searchContext += `\n\nIMPORTANT: ${numSources} sources are available for the information above. You MUST write [source] immediately after ANY claim you make that uses information from the 'Current information from web search' above. Do NOT write [source] for general knowledge. You can cite up to ${numSources} specific claims. Each [source] tag will link to one of the ${numSources} sources in order.`;
+                    } else {
+                        searchContext += `\n\nNo sources are available. Do NOT write [source] tags.`;
                     }
                 } else {
                     console.warn('Tavily search failed for opening query:', searchQuery);
@@ -1669,11 +1761,14 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 appState.currentSourceUrls = [];
 
                 if (searchResults && searchResults.answer) {
-                    searchContext = `\n\nCurrent web information: ${searchResults.answer}`;
+                    searchContext = `\n\nCurrent web information from search: ${searchResults.answer}`;
                     if (searchResults.results && searchResults.results.length > 0) {
                         // Store URLs for citation conversion
                         appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                        const numSources = appState.currentSourceUrls.length;
+                        searchContext += `\n\nIMPORTANT: ${numSources} sources are available for the information above. You MUST write [source] immediately after ANY claim you make that uses information from the 'Current web information from search' above. Do NOT write [source] for general knowledge. You can cite up to ${numSources} specific claims. Each [source] tag will link to one of the ${numSources} sources in order.`;
+                    } else {
+                        searchContext += `\n\nNo sources are available. Do NOT write [source] tags.`;
                     }
                 } else {
                     console.warn('Tavily search failed for user query:', searchQuery);
@@ -1759,11 +1854,14 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                     appState.currentSourceUrls = [];
 
                     if (searchResults && searchResults.answer) {
-                        searchContext = `\n\nCurrent information: ${searchResults.answer}`;
+                        searchContext = `\n\nCurrent information from web search: ${searchResults.answer}`;
                         if (searchResults.results && searchResults.results.length > 0) {
                             // Store URLs in appState for citation conversion
                             appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
-                            searchContext += `\n\n(Sources are available - cite claims by writing [source])`;
+                            const numSources = appState.currentSourceUrls.length;
+                            searchContext += `\n\nIMPORTANT: ${numSources} sources are available for the information above. You MUST write [source] immediately after ANY claim you make that uses information from the 'Current information from web search' above. Do NOT write [source] for general knowledge. You can cite up to ${numSources} specific claims.`;
+                        } else {
+                            searchContext += `\n\nNo sources are available. Do NOT write [source] tags.`;
                         }
                     } else {
                         console.warn('Tavily search failed for debate opening:', searchQuery);
@@ -1815,56 +1913,8 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                         // Add the response to the opponent's history as context
                         opponentHistory.push({ role: 'user', content: `Your opponent just argued: "${aiResponse}"\n\nRespond to this argument from your assigned position with evidence.` });
 
-                        // Add fact-checking after every exchange pair
-                        if (i % 2 === 1 && i < DEBATE_EXCHANGES * 2 - 1) {
-                            await sleep(EXCHANGE_DELAY);
-
-                            // Search for verification of claims
-                            const factSearchQuery = `verify fact check: ${aiResponse.substring(0, 200)}`;
-                            const factSearchResults = await searchTavily(factSearchQuery);
-
-                            let factContext = "";
-                            if (factSearchResults && factSearchResults.answer) {
-                                factContext = `\n\nWeb verification: ${factSearchResults.answer}`;
-                            }
-
-                            const factCheckPrompt = [
-                                { role: 'user', content: `Review this argument: "${aiResponse}".${factContext}\n\nFact-check one key claim using the verification data provided.` }
-                            ];
-                            const factCheck = await getFullAiResponseWithBackoff(
-                                PERSONAS.factChecker.systemPrompt,
-                                factCheckPrompt,
-                                PERSONAS.factChecker.maxTokens,
-                                PERSONAS.factChecker.maxSentences
-                            );
-                            addMessageToWindow(factCheck, 'assistant fact-checker', elements.debateWindow, PERSONAS.factChecker.name);
-                        }
-
                         await sleep(EXCHANGE_DELAY);
                     }
-
-                    // Final fact check after all exchanges
-                    await sleep(EXCHANGE_DELAY);
-
-                    // Search for overall topic verification
-                    const finalSearchQuery = `${appState.selectedProblem.title} latest facts statistics 2024 2025`;
-                    const finalSearchResults = await searchTavily(finalSearchQuery);
-
-                    let finalFactContext = "";
-                    if (finalSearchResults && finalSearchResults.answer) {
-                        finalFactContext = `\n\nLatest information: ${finalSearchResults.answer}`;
-                    }
-
-                    const finalFactCheckPrompt = [
-                        { role: 'user', content: `Review the overall debate and fact-check one key claim from either side.${finalFactContext}` }
-                    ];
-                    const finalFactCheck = await getFullAiResponseWithBackoff(
-                        PERSONAS.factChecker.systemPrompt,
-                        finalFactCheckPrompt,
-                        PERSONAS.factChecker.maxTokens,
-                        PERSONAS.factChecker.maxSentences
-                    );
-                    addMessageToWindow(finalFactCheck, 'assistant fact-checker', elements.debateWindow, PERSONAS.factChecker.name);
 
                     addMessageToWindow("Debate complete.", 'system', elements.debateWindow);
 
@@ -1911,7 +1961,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
                     elements.startDebateBtn.textContent = "Debate Complete";
                     elements.debateProceedBtn.disabled = false;
-                    elements.debateProceedBtn.textContent = "Proceed to Submit Stance";
+                    elements.debateProceedBtn.textContent = "Proceed to Final Step";
 
                 } catch (error) {
                     console.error("Debate failed:", error);
@@ -1921,11 +1971,33 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 }
             },
             
-            // Function to move to the stance screen
-            goToStanceScreen() {
-                console.log("Proceeding to stance submission.");
-                elements.stanceTopicTitle.textContent = appState.selectedProblem.title;
-                showScreen('stanceSubmission');
+            // Function to move to the rating screen
+            goToRatingScreen() {
+                console.log("Proceeding to knowledge rating.");
+                // Clear any previous rating selection
+                document.querySelectorAll('.rating-option').forEach(opt => opt.classList.remove('selected'));
+                document.getElementById('rating-submit-btn').disabled = true;
+                appState.knowledgeRating = null;
+                document.getElementById('rating-topic-title').textContent = appState.selectedProblem.title;
+                showScreen('knowledgeRating');
+            },
+
+            // Function to select a knowledge rating
+            selectRating(value) {
+                console.log(`Rating selected: ${value}`);
+                appState.knowledgeRating = value;
+
+                // Update visual selection
+                document.querySelectorAll('.rating-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                document.querySelector(`.rating-option[data-value="${value}"]`).classList.add('selected');
+
+                // Update hidden input
+                document.getElementById('rating-value-input').value = value;
+
+                // Enable submit button
+                document.getElementById('rating-submit-btn').disabled = false;
             },
 
             // Back button navigation
@@ -1935,7 +2007,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                     showScreen('welcome');
                 } else if (currentScreen === 'interaction') {
                     showScreen('problemSelection');
-                } else if (currentScreen === 'stanceSubmission') {
+                } else if (currentScreen === 'knowledgeRating') {
                     showScreen('interaction');
                 }
             },
@@ -1959,24 +2031,20 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 app.selectProblem(customId);
             },
 
-            async submitStance(event) {
+            async submitRating(event) {
                 event.preventDefault(); // Prevent default form submission
-                const stance = elements.stanceTextarea.value.trim();
-                if (!stance) {
-                    elements.stanceTextarea.style.borderColor = 'red';
-                    elements.stanceTextarea.placeholder = "Please enter your stance before submitting.";
+
+                if (appState.knowledgeRating === null) {
+                    alert('Please select a confidence rating before submitting.');
                     return;
                 }
-
-                elements.stanceTextarea.style.borderColor = 'var(--border-color)';
-                appState.userStance = stance;
 
                 const finalData = {
                     participantId: appState.participantId,
                     interactionMode: appState.interactionMode,
                     problemId: appState.selectedProblemId,
                     problemTitle: appState.selectedProblem.title,
-                    userStance: appState.userStance,
+                    knowledgeRating: appState.knowledgeRating,
                     logs: {
                         singleChatHistory: appState.singleChatHistory,
                         clarificationChatHistory: appState.clarificationChatHistory,
@@ -2005,8 +2073,8 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 try {
                     groq = new Groq({ apiKey: API_KEY, dangerouslyAllowBrowser: true });
                     console.log("Groq SDK Initialized.");
-                } catch(e) { 
-                    console.error("Failed to initialize Groq SDK:", e); 
+                } catch(e) {
+                    console.error("Failed to initialize Groq SDK:", e);
                     // Use a non-blocking error display
                     const header = document.querySelector('header h1');
                     if (header) {
@@ -2023,16 +2091,16 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 }
             }
 
-            elements.stanceForm = document.getElementById('stance-form');
+            const ratingForm = document.getElementById('rating-form');
 
             // --- Add Event Listeners ---
             elements.singleChatForm.addEventListener('submit', app.handleSingleChatSubmit);
             elements.clarificationChatForm.addEventListener('submit', app.handleClarificationChatSubmit);
-            elements.stanceForm.addEventListener('submit', app.submitStance);
-            
+            ratingForm.addEventListener('submit', app.submitRating);
+
             // Make app object globally accessible for HTML onclick attributes
             window.app = app;
-            
+
             console.log("Application Initialized.");
         }
 
