@@ -915,7 +915,7 @@
         <!-- Screen 1: Welcome & Group Assignment -->
         <div class="screen active" id="welcome-screen">
             <h2>Welcome</h2>
-            <p>Thank you for participating in this research study on AI-assisted decision-making. Your task will be to review a complex policy topic, use an AI tool to understand it, and then provide your stance on the matter.</p>
+            <p>Thank you for participating in this research study on AI-assisted decision-making. You'll explore a policy topic using an AI tool to help you learn about it.</p>
             <p>Please select your assigned group to begin.</p>
             <!-- UPDATED: Button layout and icons -->
             <div class="welcome-button-group">
@@ -1026,7 +1026,11 @@
                         <span>Very confident</span>
                     </div>
 
+                    <!-- Hidden fields that will be visible as columns in Netlify Forms -->
                     <input type="hidden" name="knowledge-rating" id="rating-value-input">
+                    <input type="hidden" name="participant-id" id="participant-id-input">
+                    <input type="hidden" name="interaction-mode" id="interaction-mode-input">
+                    <input type="hidden" name="problem-title" id="problem-title-input">
                     <input type="hidden" name="submission-data" id="submission-data-input">
 
                     <button type="submit" class="proceed-btn" id="rating-submit-btn" disabled>
@@ -1063,11 +1067,11 @@
 
         // Token limits for different agent types to enforce response length
         const TOKEN_LIMITS = {
-            debateAgent: 120,      // ~3 sentences for debate agents (FOR/AGAINST)
+            debateAgent: 200,      // ~3 sentences for debate agents (FOR/AGAINST) - increased to prevent cutoffs
             factChecker: 80,       // ~1-2 sentences for fact checker
-            clarification: 100,    // ~2-3 sentences for clarification
-            summarizer: 120,       // Summary points
-            topicIntro: 80         // Brief introduction
+            clarification: 150,    // ~2-3 sentences for clarification - increased to prevent cutoffs
+            summarizer: 150,       // Summary points
+            topicIntro: 100        // Brief introduction
         };
 
         let groq;
@@ -1182,7 +1186,7 @@
         const PERSONAS = {
             singleChatbot: {
                 name: "Assistant",
-                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly in 3-5 short, sharp sentences. Be concise and to the point. CRITICAL: Only write [source] after a claim if you are using information from the 'Current information' or 'Current web information' provided to you AND you have been told sources are available. Never write [source] for general knowledge or if no sources were provided. Each [source] must correspond to a specific fact from the search results.",
+                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly in 3-5 short, sharp sentences. Be concise and to the point.\n\nCITATION REQUIREMENTS:\n- You MUST write [source] immediately after ANY fact, statistic, or claim that comes from the 'Current information from web search' or 'Current web information from search' provided to you.\n- If sources are available and you use information from them, you MUST cite it.\n- Never write [source] for general knowledge or obvious facts.\n- If no web search information was provided, do NOT use [source] tags.\n- Every specific claim from the search results needs [source] after it.",
                 maxTokens: 500,
                 maxSentences: 5
             },
@@ -1202,9 +1206,9 @@
                 name: "Agent For",
                 systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue FOR in each exchange. Present arguments that support your assigned position using a narrative, accessible style. Tell a compelling story with real-world examples.
 
-CITATION RULE: Only write [source] after a claim if you are directly using information from the 'Current information' provided to you AND you have been told sources are available. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results. Do not exceed the number of sources available.
+CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results.
 
-CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
+LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences concise. Count each sentence carefully.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
                 maxSentences: 3
             },
@@ -1212,9 +1216,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 name: "Agent Against",
                 systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue AGAINST in each exchange. Present arguments that oppose your assigned position using a narrative, accessible style. Tell a compelling story about concerns, risks, or limitations with real-world examples.
 
-CITATION RULE: Only write [source] after a claim if you are directly using information from the 'Current information' provided to you AND you have been told sources are available. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results. Do not exceed the number of sources available.
+CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results.
 
-CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sentence. Period. If you write more than 3 sentences, your response will be cut off. Be conversational and engaging within this strict limit.`,
+LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences concise. Count each sentence carefully.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
                 maxSentences: 3
             },
@@ -1979,6 +1983,12 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 document.getElementById('rating-submit-btn').disabled = true;
                 appState.knowledgeRating = null;
                 document.getElementById('rating-topic-title').textContent = appState.selectedProblem.title;
+
+                // Pre-populate hidden form fields for Netlify visibility
+                document.getElementById('participant-id-input').value = appState.participantId;
+                document.getElementById('interaction-mode-input').value = appState.interactionMode;
+                document.getElementById('problem-title-input').value = appState.selectedProblem.title;
+
                 showScreen('knowledgeRating');
             },
 
