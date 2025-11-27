@@ -922,7 +922,7 @@
         <!-- Screen 1: Welcome & Group Assignment -->
         <div class="screen active" id="welcome-screen">
             <h2>Welcome</h2>
-            <p>Thank you for participating in this research study on AI-assisted decision-making. You'll explore a policy topic using an AI tool to help you learn about it.</p>
+            <p>In this study, you'll explore a civic policy topic with the help of AI. Your insights will help us understand how AI can support informed civic engagement.</p>
             <p>Please select your assigned group to begin.</p>
             <!-- UPDATED: Button layout and icons -->
             <div class="welcome-button-group">
@@ -1191,7 +1191,7 @@
         const PERSONAS = {
             singleChatbot: {
                 name: "Assistant",
-                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly in 3-5 short, sharp sentences. Be concise and to the point.\n\nCITATION REQUIREMENTS:\n- You MUST write [source] immediately after ANY fact, statistic, or claim that comes from the 'Current information from web search' or 'Current web information from search' provided to you.\n- If sources are available and you use information from them, you MUST cite it.\n- Never write [source] for general knowledge or obvious facts.\n- If no web search information was provided, do NOT use [source] tags.\n- Every specific claim from the search results needs [source] after it.",
+                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly in 3-5 short, sharp sentences. Be concise and to the point.\n\nCITATION REQUIREMENTS:\n- You MUST write [source] immediately after ANY fact, statistic, or claim that comes from the 'Current information from web search' or 'Current web information from search' provided to you.\n- ONLY write the word [source] - do NOT include URLs, links, or any other text with it.\n- If sources are available and you use information from them, you MUST cite it.\n- Never write [source] for general knowledge or obvious facts.\n- If no web search information was provided, do NOT use [source] tags.\n- Every specific claim from the search results needs [source] after it.\n- Example: 'The EU AI Act categorizes systems into four risk levels [source].' NOT 'The EU AI Act categorizes systems [source] (https://...)'",
                 maxTokens: 500,
                 maxSentences: 5
             },
@@ -1211,7 +1211,7 @@
                 name: "Agent For",
                 systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue FOR in each exchange. Present arguments that support your assigned position using a narrative, accessible style. Tell a compelling story with real-world examples.
 
-CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results.
+CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. ONLY write the word [source] - do NOT include URLs, links, or any other text with it. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Example: 'High-risk AI systems will face strict requirements [source].' NOT 'High-risk AI systems [source] (https://...)'
 
 LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences concise. Count each sentence carefully.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1221,7 +1221,7 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
                 name: "Agent Against",
                 systemPrompt: `You are one of two AI agents engaged in a structured debate. You will be assigned a position to argue AGAINST in each exchange. Present arguments that oppose your assigned position using a narrative, accessible style. Tell a compelling story about concerns, risks, or limitations with real-world examples.
 
-CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Each [source] must correspond to a specific fact from the search results.
+CITATION RULE: You MUST write [source] immediately after ANY specific fact, statistic, or claim that comes from the 'Current information from web search' provided to you. ONLY write the word [source] - do NOT include URLs, links, or any other text with it. If sources are available and you use information from them, you MUST cite it. Never cite general knowledge. Example: 'The regulation may stifle innovation [source].' NOT 'The regulation may stifle [source] (https://...)'
 
 LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences concise. Count each sentence carefully.`,
                 maxTokens: TOKEN_LIMITS.debateAgent,
@@ -1577,6 +1577,10 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
             text = text.replace(/\[\d+\]/g, '[source]');
             // [source 1], [source 2], [source 3] etc.
             text = text.replace(/\[source\s*\d+\]/gi, '[source]');
+
+            // Remove URLs that appear after [source] tags in parentheses
+            // Example: [source] (https://www.example.com) -> [source]
+            text = text.replace(/\[source\]\s*\([^\)]+\)/gi, '[source]');
 
             // Clean up any nested [source] tags like "[source [source]]"
             text = text.replace(/\[source\s*\[source\]\]/gi, '[source]');
