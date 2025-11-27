@@ -1067,6 +1067,12 @@
         };
 
         const PERSONAS = {
+            singleChatbot: {
+                name: "Assistant",
+                systemPrompt: "You are a helpful AI assistant. Answer questions about civic and public policy topics clearly and directly. When you cite sources, simply write [source] after the claim.",
+                maxTokens: 300,
+                maxSentences: null
+            },
             clarification: {
                 name: "Neutral Assistant",
                 systemPrompt: "You are a neutral AI providing factual information. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. No opinions or stances.",
@@ -1301,14 +1307,17 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 for await (const chunk of stream) {
                     const content = chunk.choices[0]?.delta?.content || "";
                     fullResponse += content;
-                    contentElement.textContent = fullResponse; // Update text as it streams
+                    // Convert citations to clickable links as text streams
+                    const displayText = convertSourceCitations(fullResponse, appState.currentSourceUrls);
+                    contentElement.innerHTML = displayText; // Use innerHTML to render links
                     targetWindow.scrollTop = targetWindow.scrollHeight;
                 }
 
                 // Apply sentence truncation if specified
                 if (maxSentences) {
                     fullResponse = truncateToSentences(fullResponse, maxSentences);
-                    contentElement.textContent = fullResponse; // Update with truncated version
+                    const displayText = convertSourceCitations(fullResponse, appState.currentSourceUrls);
+                    contentElement.innerHTML = displayText; // Update with truncated version
                 }
 
                 return fullResponse; // Return the full response for history logging
@@ -1381,7 +1390,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             }
         }
         
-        function setupInteractionScreen() {
+        async function setupInteractionScreen() {
             const problem = appState.selectedProblem;
             if (!problem) return;
 
@@ -1392,9 +1401,56 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
             if (appState.interactionMode === 'singleChatbot') {
                 elements.singleChatView.style.display = 'flex';
+
+                // Clear previous chat and history
+                elements.singleChatWindow.innerHTML = '';
+                appState.singleChatHistory = [];
+                appState.currentSourceUrls = [];
+
                 // Add problem context to chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.singleChatWindow);
                 appState.singleChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
+
+                // Auto-generate opening content with search
+                const thinkingMsg = addMessageToWindow(
+                    "Loading...",
+                    "assistant thinking",
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name
+                );
+
+                // Search for current information
+                const searchQuery = `${problem.title} overview facts statistics 2024 2025`;
+                const searchResults = await searchTavily(searchQuery);
+
+                let searchContext = "";
+                if (searchResults && searchResults.answer) {
+                    searchContext = `\n\nCurrent information: ${searchResults.answer}`;
+                    if (searchResults.results && searchResults.results.length > 0) {
+                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
+                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                    }
+                }
+
+                const openingPrompt = [{
+                    role: 'user',
+                    content: `Explain this topic: ${problem.fullText}${searchContext}`
+                }];
+
+                const openingSummary = await streamAiResponse(
+                    PERSONAS.singleChatbot.systemPrompt,
+                    openingPrompt,
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name,
+                    'avatar-neutral',
+                    thinkingMsg,
+                    PERSONAS.singleChatbot.maxTokens,
+                    PERSONAS.singleChatbot.maxSentences
+                );
+
+                if (openingSummary) {
+                    appState.singleChatHistory.push({ role: 'assistant', content: openingSummary });
+                }
 
             } else if (appState.interactionMode === 'dualDebate') {
                 elements.dualDebateView.style.display = 'flex';
@@ -1430,30 +1486,49 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const input = elements.singleChatInput;
                 const userInput = input.value.trim();
                 if (!userInput || appState.isAiThinking) return;
-                
-                // Add user message to UI and history
+
+                // Add user message to UI
                 addMessageToWindow(userInput, 'user', elements.singleChatWindow, "You");
-                appState.singleChatHistory.push({ role: 'user', content: userInput });
                 input.value = "";
-                
-                // NEW: Add "Thinking..." message and pass it to the stream function
+
+                // Add "Thinking..." message
                 const thinkingMsg = addMessageToWindow(
-                    "Thinking", 
-                    "assistant avatar-neutral thinking", 
-                    elements.singleChatWindow, 
-                    PERSONAS.clarification.name
+                    "Thinking",
+                    "assistant avatar-neutral thinking",
+                    elements.singleChatWindow,
+                    PERSONAS.singleChatbot.name
                 );
 
-                // Get AI response with limits
+                // Search for current information related to the question
+                const searchQuery = `${userInput} ${appState.selectedProblem.title}`;
+                const searchResults = await searchTavily(searchQuery);
+
+                let searchContext = "";
+                if (searchResults && searchResults.answer) {
+                    searchContext = `\n\nCurrent web information: ${searchResults.answer}`;
+                    if (searchResults.results && searchResults.results.length > 0) {
+                        // Store URLs for citation conversion
+                        appState.currentSourceUrls = searchResults.results.slice(0, 3).map(r => r.url);
+                        searchContext += `\n\n(You have access to sources - cite relevant claims by writing [source])`;
+                    }
+                }
+
+                // Add user question with search context to history
+                appState.singleChatHistory.push({
+                    role: 'user',
+                    content: userInput + searchContext
+                });
+
+                // Get AI response with search context
                 const aiResponse = await streamAiResponse(
-                    PERSONAS.clarification.systemPrompt,
+                    PERSONAS.singleChatbot.systemPrompt,
                     appState.singleChatHistory,
                     elements.singleChatWindow,
-                    PERSONAS.clarification.name,
+                    PERSONAS.singleChatbot.name,
                     'avatar-neutral',
-                    thinkingMsg,  // Pass the element to be filled
-                    PERSONAS.clarification.maxTokens,     // Apply token limit
-                    PERSONAS.clarification.maxSentences   // Apply sentence limit
+                    thinkingMsg,
+                    PERSONAS.singleChatbot.maxTokens,
+                    PERSONAS.singleChatbot.maxSentences
                 );
 
                 // Add AI response to history
@@ -1697,18 +1772,17 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             // Custom topic selection
             selectCustomTopic() {
                 const title = document.getElementById('custom-topic-title').value.trim();
-                const description = document.getElementById('custom-topic-description').value.trim();
 
-                if (!title || !description) {
-                    alert('Please provide both a title and description for your custom topic.');
+                if (!title) {
+                    alert('Please provide a topic title.');
                     return;
                 }
 
-                // Create a custom problem object
+                // Create a custom problem object - AI will research and explain it
                 const customId = 'custom-' + Date.now();
                 PROBLEMS[customId] = {
                     title: title,
-                    fullText: description
+                    fullText: `Policy or civic issue regarding: ${title}. Explore this topic with current information and evidence.`
                 };
 
                 app.selectProblem(customId);
