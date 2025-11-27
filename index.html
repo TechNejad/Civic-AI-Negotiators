@@ -296,6 +296,39 @@
             line-height: 1.6;
             font-size: 0.95rem;
         }
+        .chat-message .content {
+            display: block;
+        }
+        .chat-message .content p {
+            margin: 0.75rem 0;
+            line-height: 1.6;
+        }
+        .chat-message .content p:first-child {
+            margin-top: 0;
+        }
+        .chat-message .content p:last-child {
+            margin-bottom: 0;
+        }
+        .chat-message .content br {
+            display: block;
+            margin: 0.25rem 0;
+            content: "";
+        }
+        .chat-message .content ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        .chat-message .content li {
+            margin: 0.25rem 0;
+        }
+        .chat-message .content strong {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .chat-message.assistant .content strong {
+            color: var(--text-color);
+            font-weight: 700;
+        }
         .chat-message.user {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
             color: #ffffff;
@@ -1061,16 +1094,20 @@
 
         const PERSONAS = {
             singleChatbot: {
-                name: "Civic Policy Assistant",
-                systemPrompt: `You are an AI assistant helping users understand complex civic policy issues through conversation. Provide balanced, comprehensive explanations that cover:
-- Key facts and context about the issue
-- Main arguments and reasoning FOR the policy/position
-- Main arguments and concerns AGAINST the policy/position
-- Real-world implications and examples
-- Different stakeholder perspectives
+                name: "Assistant",
+                systemPrompt: `You are a helpful AI assistant supporting users who are exploring civic and public policy topics. Answer their questions clearly and directly. Be precise, concise, and useful in your responses.
 
-Be thorough yet accessible. Acknowledge complexity and tradeoffs. Use 1-3 paragraphs per response as needed to give a complete answer. When you cite sources or statistics, write [source] after the claim.`,
-                maxTokens: 400,
+FORMATTING:
+- Separate paragraphs with blank lines (two line breaks)
+- Use **bold** for emphasis when helpful
+- Use bullet points (* or -) for lists when appropriate
+- CITATIONS: When you mention facts or statistics, write [source] immediately after
+  - CORRECT: "In 2024, unemployment was 3.7% [source]"
+  - WRONG: Do NOT write [IPCC] or [source: EPA] or organization names
+  - Write only [source] and it will become a clickable link
+
+Keep responses focused and informative.`,
+                maxTokens: 300,
                 maxSentences: null
             },
             clarification: {
@@ -1307,14 +1344,21 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 for await (const chunk of stream) {
                     const content = chunk.choices[0]?.delta?.content || "";
                     fullResponse += content;
-                    contentElement.textContent = fullResponse; // Update text as it streams
+
+                    // Convert markdown and sources on each update for live rendering
+                    let displayText = markdownToHtml(fullResponse);
+                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
+                    contentElement.innerHTML = displayText; // Use innerHTML to render HTML
+
                     targetWindow.scrollTop = targetWindow.scrollHeight;
                 }
 
                 // Apply sentence truncation if specified
                 if (maxSentences) {
                     fullResponse = truncateToSentences(fullResponse, maxSentences);
-                    contentElement.textContent = fullResponse; // Update with truncated version
+                    let displayText = markdownToHtml(fullResponse);
+                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
+                    contentElement.innerHTML = displayText; // Update with truncated version
                 }
 
                 return fullResponse; // Return the full response for history logging
@@ -1335,13 +1379,78 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             appState.currentScreen = screenId;
         }
 
+        // Helper function to convert basic markdown to HTML
+        function markdownToHtml(text) {
+            if (!text) return text;
+
+            const originalText = text;
+
+            // Convert **bold text** or **bold:** to <strong> (before line breaks)
+            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // Split into paragraphs by double line breaks
+            const rawParagraphs = text.split(/\n\n+/);
+            let result = [];
+
+            console.log('[Markdown] Processing text with', rawParagraphs.length, 'paragraphs');
+
+            for (let para of rawParagraphs) {
+                if (!para.trim()) continue;
+
+                // Split paragraph into lines
+                const lines = para.split('\n');
+                let inList = false;
+                let paraResult = [];
+
+                for (let line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+
+                    // Check if line starts with bullet point (- or * followed by space)
+                    if (trimmedLine.match(/^[*\-]\s+/)) {
+                        if (!inList) {
+                            paraResult.push('<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">');
+                            inList = true;
+                        }
+                        // Remove the bullet marker and wrap in <li>
+                        const content = trimmedLine.replace(/^[*\-]\s+/, '');
+                        paraResult.push(`<li style="margin: 0.25rem 0;">${content}</li>`);
+                    } else {
+                        // Close list if we were in one
+                        if (inList) {
+                            paraResult.push('</ul>');
+                            inList = false;
+                        }
+                        paraResult.push(trimmedLine);
+                    }
+                }
+
+                // Close list if still open
+                if (inList) {
+                    paraResult.push('</ul>');
+                }
+
+                // Join lines within paragraph with <br>
+                const paraHtml = paraResult.join('<br>');
+                result.push(`<p>${paraHtml}</p>`);
+            }
+
+            return result.join('');
+        }
+
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
             if (!sourceUrls || sourceUrls.length === 0) {
+                // If no URLs, still clean up organization citations
+                text = text.replace(/\[[A-Z][^\]]*\]/g, '[source]');
                 return text;
             }
 
             let urlIndex = 0;
+
+            // First, convert ANY bracketed organization name [ORGANIZATION] or [source: ...] to [source]
+            // Match any brackets containing capital letters or "source"
+            text = text.replace(/\[(?:source:[^\]]+|[A-Z][^\]]*)\]/gi, '[source]');
 
             // Replace each [source] with a clickable link, cycling through available URLs
             return text.replace(/\[source\]/gi, (match) => {
@@ -1363,9 +1472,18 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 html += `<strong>${speakerName}</strong>`;
             }
 
+            // Convert markdown to HTML
+            let processedText = markdownToHtml(text);
+
             // Convert [source] citations to clickable links
-            const processedText = convertSourceCitations(text, appState.currentSourceUrls);
-            html += processedText;
+            processedText = convertSourceCitations(processedText, appState.currentSourceUrls);
+
+            // Wrap content in a span for consistent styling
+            if (sender.includes('assistant') || sender === 'user') {
+                html += `<span class="content">${processedText}</span>`;
+            } else {
+                html += processedText;
+            }
 
             msg.innerHTML = html;
 
@@ -1395,6 +1513,12 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
             if (appState.interactionMode === 'singleChatbot') {
                 elements.singleChatView.style.display = 'flex';
+
+                // Clear previous chat and history
+                elements.singleChatWindow.innerHTML = '';
+                appState.singleChatHistory = [];
+                appState.currentSourceUrls = [];
+
                 // Add problem context to chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.singleChatWindow);
                 appState.singleChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
@@ -1422,7 +1546,9 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
                 const openingPrompt = [{
                     role: 'user',
-                    content: `Provide a comprehensive opening overview of this policy topic: ${problem.fullText}${searchContext}\n\nCover: what the issue is, why it matters, and the main perspectives (for/against). Be welcoming and encourage the user to ask questions.`
+                    content: `Please introduce this topic to the user: ${problem.fullText}${searchContext}
+
+Provide a brief, informative overview of what this issue is about. Separate paragraphs with blank lines. Welcome the user and let them know they can ask questions to learn more.`
                 }];
 
                 const openingSummary = await streamAiResponse(
@@ -1443,6 +1569,14 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             } else if (appState.interactionMode === 'dualDebate') {
                 elements.dualDebateView.style.display = 'flex';
                 elements.clarificationPanel.style.display = 'flex';
+
+                // Clear previous chat and history
+                elements.clarificationChatWindow.innerHTML = '';
+                elements.debateWindow.innerHTML = '';
+                appState.clarificationChatHistory = [];
+                appState.debateHistory = [];
+                appState.currentSourceUrls = [];
+
                 // Add problem context to clarification chat
                 addMessageToWindow(`<strong>${problem.title}</strong>`, 'system', elements.clarificationChatWindow);
                 appState.clarificationChatHistory.push({ role: 'system', content: `The selected topic is: ${problem.fullText}` });
