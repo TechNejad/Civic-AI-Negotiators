@@ -1095,19 +1095,8 @@
         const PERSONAS = {
             singleChatbot: {
                 name: "Assistant",
-                systemPrompt: `You are a helpful AI assistant supporting users who are exploring civic and public policy topics. Answer their questions clearly and directly. Be precise, concise, and useful in your responses.
-
-FORMATTING:
-- Separate paragraphs with blank lines (two line breaks)
-- Use **bold** for emphasis when helpful
-- Use bullet points (* or -) for lists when appropriate
-- CITATIONS: When you mention facts or statistics, write [source] immediately after
-  - CORRECT: "In 2024, unemployment was 3.7% [source]"
-  - WRONG: Do NOT write [IPCC] or [source: EPA] or organization names
-  - Write only [source] and it will become a clickable link
-
-Keep responses focused and informative.`,
-                maxTokens: 300,
+                systemPrompt: `You are a helpful AI assistant. Answer questions about civic and public policy topics clearly and directly. When you cite sources, simply write [source] after the claim.`,
+                maxTokens: 250,
                 maxSentences: null
             },
             clarification: {
@@ -1383,16 +1372,12 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
         function markdownToHtml(text) {
             if (!text) return text;
 
-            const originalText = text;
-
             // Convert **bold text** or **bold:** to <strong> (before line breaks)
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
             // Split into paragraphs by double line breaks
             const rawParagraphs = text.split(/\n\n+/);
             let result = [];
-
-            console.log('[Markdown] Processing text with', rawParagraphs.length, 'paragraphs');
 
             for (let para of rawParagraphs) {
                 if (!para.trim()) continue;
@@ -1546,9 +1531,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
                 const openingPrompt = [{
                     role: 'user',
-                    content: `Please introduce this topic to the user: ${problem.fullText}${searchContext}
-
-Provide a brief, informative overview of what this issue is about. Separate paragraphs with blank lines. Welcome the user and let them know they can ask questions to learn more.`
+                    content: `Explain this topic: ${problem.fullText}${searchContext}`
                 }];
 
                 const openingSummary = await streamAiResponse(
