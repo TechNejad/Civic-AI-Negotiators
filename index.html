@@ -399,6 +399,13 @@
             font-size: 0.9rem;
         }
         .chat-message.assistant strong { color: #555; }
+
+        /* Source link styling - ensure inline display */
+        .chat-message a[href] {
+            display: inline;
+            white-space: nowrap;
+            margin-right: 0.25rem;
+        }
         
         /* System message styling */
         .chat-message.system {
@@ -973,7 +980,7 @@
                     <button class="back-btn" onclick="app.goBack()">← Back</button>
                     <h2>Step 2: Observe AI Debate</h2>
                     <p>Watch two AI agents debate opposing sides. Use the clarification chat to ask questions.</p>
-                    <button id="start-debate-btn" onclick="app.runDebate()">Start Debate</button>
+                    <button id="start-debate-btn" onclick="app.runDebate()" style="background: linear-gradient(135deg, #5a7d9a 0%, #4a6d8a 100%); box-shadow: 0 4px 12px rgba(90, 125, 154, 0.3);">Start Debate</button>
                     <div class="chat-window" id="debate-window"></div>
                     <div id="tldr-container"></div>
                     <button id="debate-proceed-btn" class="proceed-btn" onclick="app.goToRatingScreen()" disabled>
@@ -1031,7 +1038,6 @@
                     <input type="hidden" name="participant-id" id="participant-id-input">
                     <input type="hidden" name="interaction-mode" id="interaction-mode-input">
                     <input type="hidden" name="problem-title" id="problem-title-input">
-                    <input type="hidden" name="submission-data" id="submission-data-input">
 
                     <button type="submit" class="proceed-btn" id="rating-submit-btn" disabled>
                         Submit Response
@@ -2049,22 +2055,7 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
                     return;
                 }
 
-                const finalData = {
-                    participantId: appState.participantId,
-                    interactionMode: appState.interactionMode,
-                    problemId: appState.selectedProblemId,
-                    problemTitle: appState.selectedProblem.title,
-                    knowledgeRating: appState.knowledgeRating,
-                    logs: {
-                        singleChatHistory: appState.singleChatHistory,
-                        clarificationChatHistory: appState.clarificationChatHistory,
-                        debateHistory: appState.debateHistory
-                    }
-                };
-
-                // Populate the hidden input with the JSON data
-                document.getElementById('submission-data-input').value = JSON.stringify(finalData, null, 2);
-
+                // Submit the form - all hidden fields are already populated
                 const formData = new FormData(event.target);
                 fetch("/", {
                     method: "POST",
