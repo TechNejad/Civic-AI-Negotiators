@@ -1069,7 +1069,7 @@
         const PERSONAS = {
             singleChatbot: {
                 name: "Assistant",
-                systemPrompt: "You are a helpful AI assistant. Answer questions about civic and public policy topics clearly and directly. When you cite sources, simply write [source] after the claim.",
+                systemPrompt: "You are a helpful AI assistant. Answer questions clearly and directly. When you cite sources, simply write [source] after the claim.",
                 maxTokens: 300,
                 maxSentences: null
             },
@@ -1340,8 +1340,13 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
 
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
-            // First, convert ALL numbered citations [1], [2], [3] etc. to [source]
+            // First, convert ALL citation formats to [source]:
+            // [1], [2], [3] etc.
             text = text.replace(/\[\d+\]/g, '[source]');
+            // [source 1], [source 2], [source 3] etc.
+            text = text.replace(/\[source\s*\d+\]/gi, '[source]');
+            // [1] or [source 1] or any number format
+            text = text.replace(/\[(?:source\s*)?\d+\]/gi, '[source]');
 
             if (!sourceUrls || sourceUrls.length === 0) {
                 return text;
@@ -1782,7 +1787,7 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 const customId = 'custom-' + Date.now();
                 PROBLEMS[customId] = {
                     title: title,
-                    fullText: `Policy or civic issue regarding: ${title}. Explore this topic with current information and evidence.`
+                    fullText: `${title}. Explore this topic with current information and evidence.`
                 };
 
                 app.selectProblem(customId);
