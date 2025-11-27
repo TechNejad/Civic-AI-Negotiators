@@ -296,6 +296,19 @@
             line-height: 1.6;
             font-size: 0.95rem;
         }
+        .chat-message p {
+            margin: 0.75rem 0;
+            line-height: 1.6;
+        }
+        .chat-message p:first-child {
+            margin-top: 0;
+        }
+        .chat-message p:last-child {
+            margin-bottom: 0;
+        }
+        .chat-message strong {
+            font-weight: 600;
+        }
         .chat-message.user {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
             color: #ffffff;
@@ -1307,16 +1320,18 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
                 for await (const chunk of stream) {
                     const content = chunk.choices[0]?.delta?.content || "";
                     fullResponse += content;
-                    // Convert citations to clickable links as text streams
-                    const displayText = convertSourceCitations(fullResponse, appState.currentSourceUrls);
-                    contentElement.innerHTML = displayText; // Use innerHTML to render links
+                    // Convert markdown to HTML, then citations to clickable links
+                    let displayText = markdownToHtml(fullResponse);
+                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
+                    contentElement.innerHTML = displayText; // Use innerHTML to render HTML and links
                     targetWindow.scrollTop = targetWindow.scrollHeight;
                 }
 
                 // Apply sentence truncation if specified
                 if (maxSentences) {
                     fullResponse = truncateToSentences(fullResponse, maxSentences);
-                    const displayText = convertSourceCitations(fullResponse, appState.currentSourceUrls);
+                    let displayText = markdownToHtml(fullResponse);
+                    displayText = convertSourceCitations(displayText, appState.currentSourceUrls);
                     contentElement.innerHTML = displayText; // Update with truncated version
                 }
 
@@ -1338,15 +1353,37 @@ CRITICAL RULE: You MUST respond in EXACTLY 3 sentences or fewer. Count each sent
             appState.currentScreen = screenId;
         }
 
+        // Helper function to convert markdown to HTML
+        function markdownToHtml(text) {
+            if (!text) return text;
+
+            // Convert **bold** to <strong>
+            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // Convert double line breaks to paragraph breaks
+            text = text.replace(/\n\n+/g, '</p><p>');
+
+            // Wrap in paragraph tags
+            text = '<p>' + text + '</p>';
+
+            return text;
+        }
+
         // Helper function to convert [source] citations to clickable links
         function convertSourceCitations(text, sourceUrls) {
             // First, convert ALL citation formats to [source]:
+            // [source: Organization Name] or [source: text]
+            text = text.replace(/\[source:\s*[^\]]+\]/gi, '[source]');
             // [1], [2], [3] etc.
             text = text.replace(/\[\d+\]/g, '[source]');
             // [source 1], [source 2], [source 3] etc.
             text = text.replace(/\[source\s*\d+\]/gi, '[source]');
-            // [1] or [source 1] or any number format
-            text = text.replace(/\[(?:source\s*)?\d+\]/gi, '[source]');
+
+            // Clean up any nested [source] tags like "[source [source]]"
+            text = text.replace(/\[source\s*\[source\]\]/gi, '[source]');
+
+            // Remove duplicates (multiple [source] in a row)
+            text = text.replace(/(\[source\]\s*)+/gi, '[source]');
 
             if (!sourceUrls || sourceUrls.length === 0) {
                 return text;
