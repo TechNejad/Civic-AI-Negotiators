@@ -1197,7 +1197,7 @@
             },
             clarification: {
                 name: "Neutral Assistant",
-                systemPrompt: "You are a neutral AI providing factual information. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. No opinions or stances.",
+                systemPrompt: "You are a neutral AI assistant helping users understand the ongoing debate. You have access to the full debate conversation and can answer questions about what the agents said, clarify arguments, or provide additional context. You MUST answer in EXACTLY 2-3 sentences. No more. Count your sentences carefully. Stay neutral and factual.",
                 maxTokens: TOKEN_LIMITS.clarification,
                 maxSentences: 3
             },
@@ -1829,24 +1829,43 @@ LENGTH RULE: You MUST respond in EXACTLY 3 sentences or fewer. Keep sentences co
                 const input = elements.clarificationChatInput;
                 const userInput = input.value.trim();
                 if (!userInput || appState.isAiThinking) return;
-                
-                // Add user message to UI and history
+
+                // Add user message to UI
                 addMessageToWindow(userInput, 'user', elements.clarificationChatWindow, "You");
-                appState.clarificationChatHistory.push({ role: 'user', content: userInput });
                 input.value = "";
-                
+
                 // NEW: Add "Thinking..." message and pass it to the stream function
                 const thinkingMsg = addMessageToWindow(
-                    "Thinking", 
-                    "assistant avatar-neutral thinking", 
-                    elements.clarificationChatWindow, 
+                    "Thinking",
+                    "assistant avatar-neutral thinking",
+                    elements.clarificationChatWindow,
                     PERSONAS.clarification.name
                 );
-                
-                // Get AI response with limits
+
+                // Build context from debate history if available
+                let debateContext = "";
+                if (appState.debateHistory && appState.debateHistory.length > 0) {
+                    debateContext = "\n\nCurrent debate conversation:\n" +
+                        appState.debateHistory.map(entry => `${entry.speaker}: ${entry.text}`).join('\n');
+                    debateContext += "\n\nUse this debate context to answer the user's question.";
+                }
+
+                // Create message with debate context
+                const userMessageWithContext = userInput + debateContext;
+
+                // Add to history (without context for cleaner history)
+                appState.clarificationChatHistory.push({ role: 'user', content: userInput });
+
+                // Create temporary history with context for this query
+                const contextualHistory = [
+                    ...appState.clarificationChatHistory.slice(0, -1), // All previous messages
+                    { role: 'user', content: userMessageWithContext } // Current message with debate context
+                ];
+
+                // Get AI response with limits and debate context
                 const aiResponse = await streamAiResponse(
                     PERSONAS.clarification.systemPrompt,
-                    appState.clarificationChatHistory,
+                    contextualHistory,
                     elements.clarificationChatWindow,
                     PERSONAS.clarification.name,
                     'avatar-neutral',
