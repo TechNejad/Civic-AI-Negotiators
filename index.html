@@ -607,8 +607,17 @@
         }
 
         .rating-container {
-            margin: 3rem auto;
+            margin: 2rem auto;
             max-width: 700px;
+            padding: 0 1rem;
+        }
+
+        .rating-container h2 {
+            margin-bottom: 1rem;
+        }
+
+        .rating-container p {
+            line-height: 1.6;
         }
 
         .rating-scale {
@@ -616,7 +625,8 @@
             justify-content: space-between;
             align-items: center;
             gap: 0.5rem;
-            margin: 2rem 0;
+            margin: 2.5rem auto 0.5rem;
+            max-width: 650px;
         }
 
         .rating-option {
@@ -653,14 +663,36 @@
         .rating-labels {
             display: flex;
             justify-content: space-between;
-            margin-top: 1rem;
-            font-size: 0.9rem;
+            align-items: center;
+            margin-top: 0.75rem;
+            padding: 0 0.5rem;
+            font-size: 0.85rem;
             color: #5d6369;
             font-weight: 500;
         }
 
         .rating-labels span {
-            max-width: 150px;
+            max-width: 200px;
+        }
+
+        .rating-labels span:first-child {
+            text-align: left;
+        }
+
+        .rating-labels span:last-child {
+            text-align: right;
+        }
+
+        /* Submit button styling */
+        #rating-submit-btn {
+            margin-top: 2.5rem;
+            padding: 1rem 2.5rem;
+            font-size: 1.05rem;
+            max-width: 320px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
         }
 
         /* Mobile Responsive Styles */
@@ -683,13 +715,21 @@
             }
 
             .rating-labels {
-                flex-direction: column;
-                gap: 0.5rem;
-                text-align: center;
+                justify-content: space-between;
+                font-size: 0.75rem;
+                padding: 0 0.25rem;
+                margin-top: 0.5rem;
             }
 
             .rating-labels span {
-                max-width: 100%;
+                max-width: 45%;
+            }
+
+            #rating-submit-btn {
+                margin-top: 2rem;
+                padding: 0.9rem 2rem;
+                font-size: 1rem;
+                max-width: 280px;
             }
 
             /* Complete Screen Icon */
@@ -835,6 +875,22 @@
             .rating-option {
                 height: 40px;
                 font-size: 0.95rem;
+            }
+
+            .rating-labels {
+                font-size: 0.7rem;
+                padding: 0;
+            }
+
+            .rating-labels span {
+                max-width: 42%;
+            }
+
+            #rating-submit-btn {
+                margin-top: 1.75rem;
+                padding: 0.85rem 1.75rem;
+                font-size: 0.95rem;
+                max-width: 260px;
             }
 
             /* Complete Screen Icon */
