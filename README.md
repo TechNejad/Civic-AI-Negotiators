@@ -6,4 +6,4 @@ A research-based platform that presents civic issues through debates between two
 
 Co-developed for the course Civig Engagement as part of the Artificial Inteligence for Sustainable Socieities (AISS) program. 
 
-By Kevin De Lange, Luke Schumacher & Mohsen Hassan Nejad
+By Mohsen Hassan Nejad, Luke Schumacher & Kevin De Lange,
